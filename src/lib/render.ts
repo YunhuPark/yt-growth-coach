@@ -83,6 +83,20 @@ export function wrap(text: string, max: number): string {
     }
   }
   if (cur) lines.push(cur);
+  // Two lines: split at the space that makes them closest in length, so no single word is left alone below.
+  if (lines.length === 2 && clean.includes(" ")) {
+    let best = -1;
+    let gap = Infinity;
+    for (let i = 0; i < clean.length; i++) {
+      if (clean[i] !== " ") continue;
+      const g = Math.abs(i - (clean.length - i - 1));
+      if (Math.max(i, clean.length - i - 1) <= max + 2 && g < gap) {
+        gap = g;
+        best = i;
+      }
+    }
+    if (best > 0) return `${clean.slice(0, best)}\n${clean.slice(best + 1)}`;
+  }
   return lines.slice(0, 4).join("\n");
 }
 
@@ -118,11 +132,14 @@ export async function renderVideo(input: string, dir: string, opts: RenderOpts) 
       text(f, `fontsize=76:fontcolor=white:borderw=7:bordercolor=black@0.9:x=(w-text_w)/2:y=h*0.10:line_spacing=16:enable='between(t,0,${sec(until)})'`),
     );
   }
+  // Captions stop where the ending card begins so they don't show through it.
+  const captionsEnd = opts.ending?.text.trim() ? Math.max(0, outDur - opts.ending.seconds) : outDur;
   for (const c of opts.captions) {
-    if (!c.text.trim() || c.end <= c.start || c.start >= outDur) continue;
+    const end = Math.min(c.end, captionsEnd);
+    if (!c.text.trim() || end <= c.start) continue;
     const f = await textFile(c.text, 13);
     chain.push(
-      text(f, `fontsize=58:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h*0.70:line_spacing=12:enable='between(t,${sec(c.start)},${sec(Math.min(c.end, outDur))})'`),
+      text(f, `fontsize=58:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h*0.70:line_spacing=12:enable='between(t,${sec(c.start)},${sec(end)})'`),
     );
   }
   if (opts.ending?.text.trim()) {

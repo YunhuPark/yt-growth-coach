@@ -440,7 +440,12 @@ export async function timestampComments(videoId: string) {
     for (const it of r.items) {
       const c = it.snippet.topLevelComment.snippet;
       const ts = findTimestamps(c.textDisplay);
-      if (ts.length) rows.push({ sec: ts[0], text: c.textDisplay.replace(/\s+/g, " ").slice(0, 70), likes: c.likeCount });
+      if (ts.length) {
+        const flat = c.textDisplay.replace(/\s+/g, " ").trim();
+        // The UI shows the time as a link already, so drop it from the start of the comment text.
+        const body = flat.replace(/^\(?\d{1,2}(?::\d{2}){1,2}\)?\s*[-–:~]*\s*/, "");
+        rows.push({ sec: ts[0], text: (body || flat).slice(0, 70), likes: c.likeCount });
+      }
     }
     return rows.sort((a, b) => b.likes - a.likes).slice(0, 5);
   } catch {
