@@ -1,6 +1,6 @@
 import { gget, GoogleApiError } from "./google";
 import type { Scored } from "./metrics";
-import { loadBaseline, saveBaseline, type BaselineFile, type TrackEntry } from "./store";
+import { loadBaseline, saveBaseline, type BaselineFile, type FrozenResult, type TrackEntry } from "./store";
 import { mapPool, sleep } from "./util";
 
 const ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports";
@@ -144,6 +144,8 @@ const rank = (x: number, sorted: number[]) => {
 export type CheckpointResult = {
   n: N;
   ready: boolean;
+  /** true when this is the value recorded the first time the checkpoint became final */
+  frozen?: boolean;
   cum?: Cum;
   /** percentile vs. my past videos' first-N-days (higher = better) */
   pct?: Partial<Record<Metric, number>>;
@@ -171,17 +173,33 @@ const verdictFor = (p?: number) =>
 const g = globalThis as unknown as { __early?: Map<string, { at: number; rows: DayRow[] | null }> };
 const earlyCache = (g.__early ??= new Map());
 
-export async function evaluate(entry: TrackEntry, baseline: BaselineFile | null): Promise<Evaluated> {
-  const hit = earlyCache.get(entry.videoId);
-  let rows: DayRow[] | null;
-  if (hit && Date.now() - hit.at < 30 * 60_000) rows = hit.rows;
-  else {
-    rows = await fetchDays(entry.videoId, entry.publishedAt, 7);
-    earlyCache.set(entry.videoId, { at: Date.now(), rows });
+export async function evaluate(entry: TrackEntry, baseline: BaselineFile | null, fresh = false): Promise<Evaluated> {
+  const frozenOf = (n: number) => entry.frozen?.[String(n)];
+
+  // Only hit the Analytics API when some checkpoint is final but not yet recorded.
+  const needRows = CHECKPOINTS.some((n) => isReady(entry.publishedAt, n) && !frozenOf(n));
+  let rows: DayRow[] | null = null;
+  if (needRows) {
+    const hit = earlyCache.get(entry.videoId);
+    if (!fresh && hit && Date.now() - hit.at < 30 * 60_000) rows = hit.rows;
+    else {
+      rows = await fetchDays(entry.videoId, entry.publishedAt, 7);
+      earlyCache.set(entry.videoId, { at: Date.now(), rows });
+    }
   }
 
   const checkpoints: CheckpointResult[] = CHECKPOINTS.map((n) => {
     const ready = isReady(entry.publishedAt, n);
+    const fz = frozenOf(n);
+    if (ready && fz) {
+      return {
+        n,
+        ready,
+        frozen: true,
+        cum: { views: fz.views, cvr: fz.cvr, cta: fz.cta, ret: fz.ret },
+        pct: fz.pct as Partial<Record<Metric, number>>,
+      };
+    }
     const cum = rows ? cumulative(rows, n) : null;
     if (!ready || !cum) return { n, ready, cum: cum ?? undefined };
     const b = baseline?.byN[String(n)];
@@ -262,4 +280,19 @@ export async function trackedForAI(entries: TrackEntry[], baseline: BaselineFile
     })),
     leverSummary: learnFromLevers(evals),
   };
+}
+
+/** Snapshot of a final checkpoint, to be stored on the entry. */
+export function freezeCheckpoint(c: CheckpointResult, at = new Date().toISOString()): FrozenResult | null {
+  if (!c.ready || !c.cum || !c.pct || !Object.keys(c.pct).length) return null;
+  return { at, views: c.cum.views, cvr: c.cum.cvr, cta: c.cum.cta, ret: c.cum.ret, pct: c.pct as Record<string, number> };
+}
+
+/** One line for the notification feed, e.g. "조회수 2,485 (상위 40%) · 구독 전환 0.21 (상위 55%)". */
+export function summarizeCheckpoint(c: CheckpointResult): string {
+  const top = (p?: number) => (p === undefined ? "" : ` (상위 ${Math.max(1, 100 - p)}%)`);
+  const parts = [`조회수 ${c.cum?.views.toLocaleString("ko-KR") ?? "–"}${top(c.pct?.views)}`];
+  if (c.cum?.cvr !== undefined) parts.push(`구독 전환 ${c.cum.cvr.toFixed(2)}${top(c.pct?.cvr)}`);
+  if (c.cum?.cta !== undefined) parts.push(`CTA ${c.cum.cta.toFixed(2)}%${top(c.pct?.cta)}`);
+  return `${parts.join(" · ")} — ${verdictFor(c.pct?.views)}`;
 }

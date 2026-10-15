@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { CollectEvent } from "@/lib/store";
 import type { BaselineSummary, Evaluated, LeverResult, Metric } from "@/lib/tracking";
 import { api, fmt } from "./shared";
 
@@ -13,6 +14,15 @@ type Resp = {
   candidates: Cand[];
   ideas: string[];
   levers: Lever[];
+};
+
+type CollectStatus = {
+  lastRunAt: string | null;
+  lastError: string | null;
+  lastResult: { newVideos: number; newEvents: number; checked: number } | null;
+  autoOn: boolean;
+  unread: number;
+  events: CollectEvent[];
 };
 
 const METRICS: { key: Metric; label: string; d: number; unit: string }[] = [
@@ -30,10 +40,24 @@ const tone = (pct?: number) => (pct === undefined ? "" : pct >= 75 ? "text-good"
 const readyDate = (publishedAt: string, n: number) =>
   new Date(Date.parse(publishedAt) + (n + 1) * 86400_000).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
 
-export default function Tracking() {
+export default function Tracking({ onUnread }: { onUnread?: (n: number) => void }) {
   const [data, setData] = useState<Resp | null>(null);
+  const [collect, setCollect] = useState<CollectStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  const applyCollect = useCallback(
+    (c: CollectStatus) => {
+      setCollect(c);
+      onUnread?.(c.unread);
+    },
+    [onUnread],
+  );
+
+  const loadCollect = useCallback(
+    () => api<CollectStatus>("/api/collect").then(applyCollect).catch(() => {}),
+    [applyCollect],
+  );
 
   const load = useCallback(
     () =>
@@ -48,7 +72,27 @@ export default function Tracking() {
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadCollect();
+  }, [load, loadCollect]);
+
+  const collectAction = async (action: "run" | "read") => {
+    setBusy(action === "run" ? "collect" : null);
+    setError(null);
+    try {
+      applyCollect(
+        await api<CollectStatus>("/api/collect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        }),
+      );
+      if (action === "run") await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const buildBaseline = async (refresh = false) => {
     setBusy("baseline");
@@ -73,6 +117,10 @@ export default function Tracking() {
     <div className="flex flex-col gap-5">
       {error && <div className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</div>}
 
+      {collect && (
+        <AutoCollect c={collect} busy={busy === "collect"} onRun={() => collectAction("run")} onRead={() => collectAction("read")} />
+      )}
+
       <Baseline b={data.baseline} busy={busy === "baseline"} onBuild={buildBaseline} />
 
       {data.baseline && <LinkForm data={data} onLinked={load} setError={setError} />}
@@ -85,6 +133,9 @@ export default function Tracking() {
               key={e.videoId}
               e={e}
               levers={data.levers}
+              ideas={data.ideas}
+              onChanged={load}
+              setError={setError}
               onDelete={async () => {
                 await api(`/api/tracking?id=${e.videoId}`, { method: "DELETE" });
                 load();
@@ -244,8 +295,23 @@ function LinkForm({ data, onLinked, setError }: { data: Resp; onLinked: () => vo
   );
 }
 
-function EntryCard({ e, levers, onDelete }: { e: Evaluated; levers: Lever[]; onDelete: () => void }) {
+function EntryCard({
+  e,
+  levers,
+  ideas,
+  onChanged,
+  setError,
+  onDelete,
+}: {
+  e: Evaluated;
+  levers: Lever[];
+  ideas: string[];
+  onChanged: () => void;
+  setError: (m: string | null) => void;
+  onDelete: () => void;
+}) {
   const name = new Map(levers.map((l) => [l.id, l.label]));
+  const [editing, setEditing] = useState(false);
   return (
     <article className="card flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
@@ -258,10 +324,15 @@ function EntryCard({ e, levers, onDelete }: { e: Evaluated; levers: Lever[]; onD
             {e.ideaTitle ? ` · 아이디어: ${e.ideaTitle}` : ""}
             {e.note ? ` · ${e.note}` : ""}
           </p>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {e.auto && <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">자동 감지</span>}
             {e.levers.map((l) => (
               <span key={l} className="rounded bg-accent/15 px-1.5 py-0.5 text-xs text-accent">{name.get(l) ?? l}</span>
             ))}
+            {e.auto && e.levers.length === 0 && <span className="text-xs text-muted">시도한 요소를 체크해 주세요</span>}
+            <button className="text-xs text-muted underline hover:text-foreground" onClick={() => setEditing(!editing)}>
+              {editing ? "닫기" : "시도한 요소 편집"}
+            </button>
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -269,12 +340,33 @@ function EntryCard({ e, levers, onDelete }: { e: Evaluated; levers: Lever[]; onD
           <button className="text-xs text-muted hover:text-bad" onClick={onDelete}>추적 중단</button>
         </div>
       </div>
+      {editing && (
+        <EditEntry
+          e={e}
+          levers={levers}
+          ideas={ideas}
+          setError={setError}
+          onDone={() => {
+            setEditing(false);
+            onChanged();
+          }}
+        />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="py-1 pr-3">지표</th>
-              {e.checkpoints.map((c) => <th key={c.n} className="px-2">{c.n}일차</th>)}
+              {e.checkpoints.map((c) => (
+                <th key={c.n} className="px-2">
+                  {c.n}일차
+                  {c.frozen && (
+                    <span className="ml-1 font-normal" title="처음 확정된 시점의 값으로 기록됨">
+                      · 기록됨
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -321,6 +413,136 @@ function Learned({ rows }: { rows: LeverResult[] }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function EditEntry({
+  e,
+  levers,
+  ideas,
+  setError,
+  onDone,
+}: {
+  e: Evaluated;
+  levers: Lever[];
+  ideas: string[];
+  setError: (m: string | null) => void;
+  onDone: () => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(e.levers);
+  const [idea, setIdea] = useState(e.ideaTitle ?? "");
+  const [note, setNote] = useState(e.note === "자동 감지" ? "" : (e.note ?? ""));
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api("/api/tracking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: e.videoId, ideaTitle: idea || undefined, levers: picked, note: note || undefined }),
+      });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-line p-3">
+      <fieldset className="flex flex-wrap gap-x-5 gap-y-1.5">
+        <legend className="mb-1 text-xs text-muted">이 영상에서 시도한 것</legend>
+        {levers.map((l) => (
+          <label key={l.id} className="flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={picked.includes(l.id)}
+              onChange={(ev) => setPicked(ev.target.checked ? [...picked, l.id] : picked.filter((x) => x !== l.id))}
+            />
+            {l.label}
+          </label>
+        ))}
+      </fieldset>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="field">어떤 추천 아이디어로 만들었나요?
+          <select className="input" value={idea} onChange={(ev) => setIdea(ev.target.value)}>
+            <option value="">직접 만든 영상</option>
+            {ideas.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="field">메모
+          <input className="input" value={note} onChange={(ev) => setNote(ev.target.value)} />
+        </label>
+      </div>
+      <div>
+        <button className="btn-primary" onClick={save} disabled={busy}>{busy ? "저장 중…" : "저장"}</button>
+      </div>
+    </div>
+  );
+}
+
+function AutoCollect({
+  c,
+  busy,
+  onRun,
+  onRead,
+}: {
+  c: CollectStatus;
+  busy: boolean;
+  onRun: () => void;
+  onRead: () => void;
+}) {
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return (
+    <section className="card flex flex-col gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">
+            자동 수집
+            {c.unread > 0 && (
+              <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-white">새 알림 {c.unread}</span>
+            )}
+          </h2>
+          <p className="text-xs text-muted">
+            {c.autoOn ? "앱이 켜져 있으면 6시간마다 자동으로" : "자동 실행이 꺼져 있습니다. 버튼이나 npm run collect로"} 새 영상을 감지하고, 1·3·7일차 결과가
+            확정되면 그 값을 기록합니다.
+            {c.lastRunAt ? ` 마지막 수집 ${when(c.lastRunAt)}` : " 아직 수집한 적이 없습니다."}
+            {c.lastResult ? ` (새 영상 ${c.lastResult.newVideos}개 · 새 알림 ${c.lastResult.newEvents}개)` : ""}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {c.unread > 0 && (
+            <button className="btn" onClick={onRead}>
+              모두 읽음
+            </button>
+          )}
+          <button className="btn-primary" onClick={onRun} disabled={busy}>
+            {busy ? "수집 중…" : "지금 수집"}
+          </button>
+        </div>
+      </div>
+      {c.lastError && (
+        <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-xs text-bad">마지막 수집 실패: {c.lastError}</p>
+      )}
+      {c.events.length > 0 && (
+        <ul className="divide-y divide-line rounded-md border border-line">
+          {c.events.slice(0, 8).map((e) => (
+            <li key={e.id} className="flex items-start gap-2 px-3 py-2 text-sm">
+              <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${e.read ? "bg-line" : "bg-accent"}`} />
+              <div className="min-w-0">
+                <p className="truncate font-medium">{e.title}</p>
+                <p className="text-xs text-muted">{e.text}</p>
+              </div>
+              <span className="ml-auto shrink-0 text-xs text-muted">{when(e.at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

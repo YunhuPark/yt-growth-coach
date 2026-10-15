@@ -66,6 +66,19 @@ export type TrackEntry = {
   levers: string[];
   note?: string;
   linkedAt: string;
+  /** added by the collector when it noticed a new upload (levers can be edited later) */
+  auto?: boolean;
+  /** results frozen the first time each checkpoint became final, keyed by day count ("1", "3", "7") */
+  frozen?: Record<string, FrozenResult>;
+};
+export type FrozenResult = {
+  at: string;
+  views: number;
+  cvr?: number;
+  cta?: number;
+  ret?: number;
+  /** share of my past videos beaten, by metric */
+  pct: Record<string, number>;
 };
 export const loadTracking = () => readJson<TrackEntry[]>("tracking.json", []);
 export const saveTracking = (t: TrackEntry[]) => writeJson("tracking.json", t);
@@ -77,3 +90,26 @@ export type BaselineFile = {
 };
 export const loadBaseline = () => readJson<BaselineFile | null>("baseline.json", null);
 export const saveBaseline = (b: BaselineFile) => writeJson("baseline.json", b);
+
+export type CollectorState = {
+  lastRunAt?: string;
+  lastError?: string;
+  lastResult?: { newVideos: number; newEvents: number; checked: number };
+  /** video ids already seen, so only genuinely new uploads trigger tracking */
+  seen?: string[];
+};
+export const loadCollector = () => readJson<CollectorState>("collector.json", {});
+export const saveCollector = (c: CollectorState) => writeJson("collector.json", c);
+
+export type CollectEvent = {
+  id: string;
+  at: string;
+  type: "new_video" | "checkpoint";
+  videoId: string;
+  title: string;
+  n?: number;
+  text: string;
+  read: boolean;
+};
+export const loadEvents = () => readJson<CollectEvent[]>("events.json", []);
+export const saveEvents = (e: CollectEvent[]) => writeJson("events.json", e.slice(0, 200));

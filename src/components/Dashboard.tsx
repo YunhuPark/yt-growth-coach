@@ -47,6 +47,13 @@ export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("diagnosis");
 
   const [authError, setAuthError] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    api<{ unread: number }>("/api/collect")
+      .then((c) => setUnread(c.unread))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback((refresh = false) => {
     return api<Analysis>(`/api/analysis${refresh ? "?refresh=1" : ""}`)
@@ -118,7 +125,7 @@ export default function Dashboard() {
             ["trends", "트렌드"],
             ["recommend", "AI 추천"],
             ["studio", "영상 제작"],
-            ["tracking", "성과 추적"],
+            ["tracking", unread > 0 ? `성과 추적 (${unread})` : "성과 추적"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
           <button
@@ -136,7 +143,7 @@ export default function Dashboard() {
       {tab === "trends" && <Trends />}
       {tab === "recommend" && <Recommend />}
       {tab === "studio" && <Studio />}
-      {tab === "tracking" && <Tracking />}
+      {tab === "tracking" && <Tracking onUnread={setUnread} />}
     </Shell>
   );
 }

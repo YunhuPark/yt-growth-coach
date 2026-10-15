@@ -70,7 +70,9 @@ export async function POST(req: Request) {
 
     const valid = new Set<string>(LEVERS.map((l) => l.id));
     const entries = await loadTracking();
+    const existing = entries.find((e) => e.videoId === id);
     const entry: TrackEntry = {
+      ...existing, // keeps results already recorded by the collector
       videoId: id,
       title: d.title,
       publishedAt: d.publishedAt,
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
       ideaTitle,
       levers: levers.filter((l) => valid.has(l)),
       note,
-      linkedAt: new Date().toISOString(),
+      linkedAt: existing?.linkedAt ?? new Date().toISOString(),
     };
     await saveTracking([entry, ...entries.filter((e) => e.videoId !== id)]);
     return Response.json({ ok: true });
@@ -92,4 +94,34 @@ export async function DELETE(req: Request) {
   if (!id) return Response.json({ error: "id가 필요합니다." }, { status: 400 });
   await saveTracking((await loadTracking()).filter((e) => e.videoId !== id));
   return Response.json({ ok: true });
+}
+
+const Patch = z.object({
+  videoId: z.string().min(1).max(20),
+  ideaTitle: z.string().max(200).optional(),
+  levers: z.array(z.string()).max(10),
+  note: z.string().max(300).optional(),
+});
+
+export async function PATCH(req: Request) {
+  try {
+    const parsed = Patch.safeParse(await req.json());
+    if (!parsed.success) return Response.json({ error: "입력 형식이 올바르지 않습니다." }, { status: 400 });
+    const { videoId, ideaTitle, levers, note } = parsed.data;
+    const valid = new Set<string>(LEVERS.map((l) => l.id));
+    const entries = await loadTracking();
+    if (!entries.some((e) => e.videoId === videoId)) {
+      return Response.json({ error: "추적 중인 영상이 아닙니다." }, { status: 404 });
+    }
+    await saveTracking(
+      entries.map((e) =>
+        e.videoId === videoId
+          ? { ...e, ideaTitle: ideaTitle || undefined, levers: levers.filter((l) => valid.has(l)), note: note || undefined, auto: false }
+          : e,
+      ),
+    );
+    return Response.json({ ok: true });
+  } catch (e) {
+    return errorResponse(e);
+  }
 }
