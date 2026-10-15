@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YT Growth Coach
 
-## Getting Started
+내 유튜브 채널 지표와 시장 트렌드를 바탕으로 **다음에 어떤 롱폼·쇼츠·릴스를 만들지** 추천하고, 제작 준비와 성과 검증까지 돕는 로컬 대시보드.
 
-First, run the development server:
+## 기능
+
+| 탭 | 내용 |
+|---|---|
+| 내 채널 진단 | 영상별 품질 점수(조회 속도·시청 지속률·참여·구독 전환 CVR), CTA 반응률, 자동 회고, 제목·길이·요일 패턴. 점수·총 조회수·구독 전환순 정렬 |
+| 트렌드 | 국가/카테고리별 인기 급상승, 경쟁 채널의 "평소 대비 터진 영상", 키워드별 상위 영상. **비슷한 채널 찾기**: 내 영상의 제목·해시태그로 채널을 파악하고, 후보 채널의 최근 영상 30개를 직접 확인해 같은 소재를 꾸준히 다루는 채널만 남김(해시태그만 끼운 채널은 제외하고 이유 표시) |
+| AI 추천 | 한 줄 결론, 핵심 지표, 우선순위별 할 일, 영상 아이디어 6~8개. 결과는 저장됨. 아이디어마다 **제작 패키지**(제목 3안, 훅 자막, 컷 구성, 엔딩 CTA, 고정 댓글, 설명, 해시태그, 업로드 시간, 확인할 빈칸) 생성 |
+| 영상 제작 | **A. 소재 후보 찾기**: 아이디어에 맞는 원본 영상을 링크·타임스탬프·시청자 댓글 시간대로 안내(내려받지 않음, 공식/팬 편집본 추정 표시). **B. 편집 자동화**: 내가 권리를 가진 영상 파일에 9:16 변환, 훅 자막, 구간 자막, 엔딩 CTA 카드를 입혀 mp4 생성 |
+| 성과 추적 | 기존 영상의 첫 1·3·7일 성적으로 기준선을 만들고, 새로 올린 영상을 "상위 몇 %"로 비교. 시도한 요소(시리즈 태그, 엔딩 CTA 등)별 효과를 모아 다음 AI 추천에 반영 |
+
+## 실행
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # 값 채우기
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> OAuth 로그인은 앱 내장 브라우저에서 막히는 경우가 있어 **Chrome/Edge에서 `localhost:3000`** 으로 진행하세요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Google Cloud 설정 (최초 1회)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트 생성(또는 기존 프로젝트 사용)
+2. **API 및 서비스 → 라이브러리**에서 `YouTube Data API v3`, `YouTube Analytics API` 사용 설정
+3. **Google 인증 플랫폼**: 사용자 유형 외부(테스트 중), **테스트 사용자에 내 구글 계정 추가**
+4. **클라이언트 → OAuth 클라이언트 ID(웹 애플리케이션)**, 승인된 리디렉션 URI: `http://localhost:3000/api/auth/callback`
+5. 클라이언트 ID/보안 비밀번호 → `.env.local`의 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (보안 비밀번호는 생성 직후에만 볼 수 있음)
+6. **API 키**(영상 제작 탭의 댓글 기반 장면 힌트에 필요): 사용자 인증 정보 → API 키 만들기, **YouTube Data API v3로 제한** → `YOUTUBE_API_KEY`
+7. `ANTHROPIC_API_KEY` 입력 (AI 기능용)
 
-## Learn More
+테스트 모드에서는 refresh token이 7일 뒤 만료되므로 그때마다 다시 연결해야 합니다.
 
-To learn more about Next.js, take a look at the following resources:
+## 지표 정의
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **쇼츠**: 길이 3분 이하. 쇼츠 지속률이 100%를 넘는 것은 반복 재생이 포함되기 때문입니다.
+- **품질 점수**: 같은 포맷 안의 백분위 가중 평균 — 조회 속도 20 · 지속률 30 · CTR 15 · 참여 15 · 구독 전환 20. 없는 지표는 제외하고 재정규화. 업로드 7일 미만은 미평가.
+- **CVR**: 1천 조회당 신규 구독자. **CTA 반응**: `(댓글 + 공유) / 조회수`.
+- **CTR**: YouTube Analytics API가 영상별 조회를 지원하지 않아 제외됩니다(Studio에서 확인).
+- **성과 추적 기준선**: 내 기존 영상의 첫 N일 누적 성적 분포. 새 영상과 같은 조건으로 비교합니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 한계와 주의
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **방송·타사 영상을 내려받거나 자동으로 자르는 기능은 없습니다.** 소재 후보 찾기는 링크만 보여주며, 편집 자동화는 권리 확인에 체크한 영상에만 렌더링합니다. 권리 관계는 사용자 책임이며 권리자 정책을 직접 확인해야 합니다.
+- 소재 후보의 "공식/팬 편집본" 표시는 제목·채널명으로 한 추정입니다.
+- 인스타 릴스 성과 데이터는 수집하지 않습니다. 릴스는 성과 좋은 쇼츠의 재활용 아이디어로만 제안합니다.
+- 패턴 인사이트는 상관관계이며 표본이 작으면 신뢰도가 낮습니다. 성과 추적은 영상 3개 미만이면 참고만 하세요.
+- 토큰, 설정, 렌더 결과는 로컬 `.data/`에 저장됩니다(gitignore). 단일 사용자 로컬 실행용이며, 여러 사용자에게 서비스하려면 DB와 사용자별 세션이 필요합니다.
+- 영상 편집에는 `ffmpeg-static`(프로젝트 내 설치)과 시스템 한글 폰트(맑은 고딕/나눔고딕)를 사용합니다.

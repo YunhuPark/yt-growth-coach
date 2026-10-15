@@ -1,0 +1,16 @@
+import { getAnalysis } from "@/lib/analysis";
+import { errorResponse } from "@/lib/http";
+import { getBaseline, summarizeBaseline } from "@/lib/tracking";
+
+export const maxDuration = 300;
+
+/** Builds (or refreshes) the first-N-days baseline from my existing videos. One Analytics call per video. */
+export async function POST(req: Request) {
+  try {
+    const { refresh } = (await req.json().catch(() => ({}))) as { refresh?: boolean };
+    const a = await getAnalysis();
+    return Response.json(summarizeBaseline(await getBaseline(a.videos, !!refresh)));
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
