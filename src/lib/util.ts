@@ -14,3 +14,11 @@ export async function mapPool<T, R>(items: T[], size: number, fn: (t: T) => Prom
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Accepts a full YouTube URL (watch, shorts, youtu.be, embed) or a bare 11-char id. */
+export function parseVideoId(input: string): string | null {
+  const s = input.trim();
+  if (/^[\w-]{11}$/.test(s)) return s;
+  const m = /(?:v=|youtu\.be\/|\/shorts\/|\/embed\/)([\w-]{11})/.exec(s);
+  return m ? m[1] : null;
+}

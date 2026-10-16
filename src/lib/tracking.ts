@@ -29,7 +29,7 @@ export const METRIC_LABEL: Record<Metric, string> = {
   ret: "지속률",
 };
 
-type DayRow = { offset: number; views: number; subs: number; acts: number; ret: number };
+export type DayRow = { offset: number; views: number; subs: number; acts: number; ret: number };
 
 async function fetchDays(videoId: string, publishedAt: string, throughDay: number): Promise<DayRow[] | null> {
   const start = new Date(Date.parse(publishedAt)).toISOString().slice(0, 10);
@@ -66,7 +66,7 @@ async function fetchDays(videoId: string, publishedAt: string, throughDay: numbe
   return null;
 }
 
-function cumulative(rows: DayRow[], n: number): Cum | null {
+export function cumulative(rows: DayRow[], n: number): Cum | null {
   const used = rows.filter((r) => r.offset >= 0 && r.offset < n);
   const views = used.reduce((s, r) => s + r.views, 0);
   if (!used.length) return null;
@@ -132,7 +132,7 @@ export function summarizeBaseline(b: BaselineFile): BaselineSummary {
 }
 
 /** Share of baseline videos this value beats, 0-100. */
-const rank = (x: number, sorted: number[]) => {
+export const rank = (x: number, sorted: number[]) => {
   if (sorted.length < 2) return 50;
   const below = sorted.filter((y) => y < x).length;
   const equal = sorted.filter((y) => y === x).length;
@@ -157,7 +157,7 @@ export type Evaluated = TrackEntry & {
   latestPct?: Partial<Record<Metric, number>>;
 };
 
-const verdictFor = (p?: number) =>
+export const verdictFor = (p?: number) =>
   p === undefined
     ? "집계 중"
     : p >= 90

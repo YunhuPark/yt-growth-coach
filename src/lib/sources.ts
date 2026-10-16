@@ -34,11 +34,24 @@ export type SourceVideo = {
 
 export type SourceResult = { queries: string[]; scene: string; videos: SourceVideo[]; commentsAvailable: boolean };
 
-const FAN_EDIT = /모음|compilation|compil|하이라이트|짤|클립|편집|\.zip|shorts?|쇼츠/i;
-const OFFICIAL = /(mbc|kbs|sbs|jtbc|tvn|mnet|ena|ebs|cj\s?enm|official)|공식|스튜디오\s?프로미스나인|스프\s*:/i;
+const FAN_EDIT = /모음|compilation|compil|하이라이트|짤|클립|편집|\.zip|\bshorts?\b|쇼츠/i;
+// Broadcaster names only count at the start of a word, so "MBCkpop" matches but "Athena" doesn't hit "ena".
+const BROADCASTER = /(?<![a-z])(?:mbc|kbs|sbs|jtbc|tvn|mnet|ebs|cj\s?enm)|(?<![a-z])ena(?![a-z])/i;
+const OFFICIAL_WORD = /\bofficial\b|공식/i;
+const STUDIO_MARK = /스튜디오|\bstudio\b|\bofficial\b|공식/i;
 
-export function classifySource(title: string, channelTitle: string): SourceKind {
-  if (OFFICIAL.test(channelTitle)) return "official";
+const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+
+/**
+ * A guess from titles and channel names only. `coreTerms` are the idea's proper nouns (group, person, show): a channel
+ * that names the subject and also looks like a studio/official channel is treated as official.
+ */
+export function classifySource(title: string, channelTitle: string, coreTerms: string[] = []): SourceKind {
+  const channel = norm(channelTitle);
+  const namesTheSubject = coreTerms.some((t) => norm(t).length >= 2 && channel.includes(norm(t)));
+  if (BROADCASTER.test(channelTitle) || OFFICIAL_WORD.test(channelTitle) || (namesTheSubject && STUDIO_MARK.test(channelTitle))) {
+    return "official";
+  }
   if (FAN_EDIT.test(title)) return "fan_edit";
   return "unknown";
 }
@@ -94,7 +107,7 @@ export async function findSources(idea: Idea, hashtags: string[], region: string
     const hotspots = commentsAvailable && info.indexOf(v) < 6 ? await timestampComments(v.id) : [];
     return {
       id: v.id,
-      kind: classifySource(v.title, v.channelTitle),
+      kind: classifySource(v.title, v.channelTitle, terms),
       title: v.title,
       channelTitle: v.channelTitle,
       durationSec: v.durationSec,

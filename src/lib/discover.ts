@@ -92,7 +92,7 @@ export type Excluded = { id: string; title: string; subscribers: number; reason:
 type Pool = { id: string; hits: number };
 
 // The model sometimes echoes raw metric names; show readable text instead.
-const cleanReason = (r: string) =>
+export const cleanReason = (r: string) =>
   r
     .replace(/\(?\s*titleMatchPct\s*[:=]?\s*(\d+)\s*\)?/g, "(제목 일치 $1%)")
     .replace(/\(?\s*hashtagOnlyPct\s*[:=]?\s*(\d+)\s*\)?/g, "(해시태그에만 $1%)");
@@ -100,7 +100,7 @@ const cleanReason = (r: string) =>
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 const stripHashtags = (t: string) => t.replace(/#[\p{L}\p{N}_]+/gu, " ");
 
-function matchStats(videos: RawVideo[], coreTerms: string[], now: number) {
+export function matchStats(videos: RawVideo[], coreTerms: string[], now: number) {
   const terms = coreTerms.map(norm).filter((t) => t.length >= 2);
   let inTitle = 0;
   let metaOnly = 0;
