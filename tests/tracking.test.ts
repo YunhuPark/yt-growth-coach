@@ -93,14 +93,12 @@ describe("verdictFor", () => {
 describe("summarizeBaseline", () => {
   it("reports quartiles and p90 of each metric", () => {
     const sorted = Array.from({ length: 10 }, (_, i) => i + 1);
-    const file: BaselineFile = {
-      at: new Date(NOW).toISOString(),
-      n: 10,
-      byN: { "7": { views: sorted, cvr: sorted, cta: sorted, ret: sorted } },
-    };
+    const set = { n: 10, byN: { "7": { views: sorted, cvr: sorted, cta: sorted, ret: sorted } } };
+    const file: BaselineFile = { at: new Date(NOW).toISOString(), sets: { short: set } };
     const s = summarizeBaseline(file);
-    assert.deepEqual(s.byN["7"].views, { p25: 3, p50: 6, p75: 8, p90: 10 });
-    assert.equal(s.n, 10);
+    assert.deepEqual(s.sets.short!.byN["7"].views, { p25: 3, p50: 6, p75: 8, p90: 10 });
+    assert.equal(s.sets.short!.n, 10);
+    assert.equal(s.sets.long, undefined); // a format with no baseline is simply absent
   });
 });
 
@@ -139,14 +137,36 @@ describe("evaluate", () => {
         "1": frozen(2000, { views: 40, cvr: 55 }, 0.2),
         "3": frozen(3000, { views: 60, cvr: 50 }, 0.25),
         "7": frozen(5000, { views: 91, cvr: 45 }, 0.3),
+        "28": frozen(9000, { views: 70, cvr: 40 }, 0.35),
       },
     });
     const ev = await evaluate(e, null);
     assert.equal(fetchCalls, 0);
     assert.ok(ev.checkpoints.every((c) => c.ready && c.frozen));
     assert.equal(ev.checkpoints[2].cum!.views, 5000);
-    assert.deepEqual(ev.latestPct, { views: 91, cvr: 45 });
-    assert.equal(ev.verdict, "7일차 기존 영상 대비 최상위권");
+    assert.equal(ev.checkpoints[3].cum!.views, 9000);
+    // The latest final checkpoint decides the verdict.
+    assert.deepEqual(ev.latestPct, { views: 70, cvr: 40 });
+    assert.equal(ev.verdict, "28일차 평균 이상");
+    assert.equal(ev.compared, true);
+  });
+
+  it("makes no API call once every checkpoint that is final so far has been recorded", async () => {
+    // 10 days old: days 1, 3 and 7 are final and recorded; day 28 is not final yet, so there is nothing to fetch.
+    const e = entry({
+      publishedAt: new Date(Date.now() - 10 * DAY).toISOString(),
+      frozen: {
+        "1": frozen(2000, { views: 40 }),
+        "3": frozen(3000, { views: 60 }),
+        "7": frozen(5000, { views: 80 }),
+      },
+    });
+    const ev = await evaluate(e, null);
+    assert.equal(fetchCalls, 0);
+    assert.deepEqual(
+      ev.checkpoints.map((c) => [c.n, c.ready]),
+      [[1, true], [3, true], [7, true], [28, false]],
+    );
   });
 
   it("makes no API call for a video that has no final checkpoint yet", async () => {
@@ -230,15 +250,16 @@ describe("trackedForAI", () => {
         "1": frozen(2000, { views: 40, cvr: 55 }, 0.2),
         "3": frozen(3000, { views: 60, cvr: 50 }, 0.25),
         "7": frozen(5000, { views: 91, cvr: 45 }, 0.3),
+        "28": frozen(9000, { views: 70, cvr: 40 }, 0.35),
       },
     };
     const out = await trackedForAI([e], null);
     assert.equal(calls, 0);
     assert.equal(out.videos.length, 1);
     assert.deepEqual(out.videos[0].leversTried, ["엔딩 CTA 카드"]); // ids are translated to labels
-    assert.equal(out.videos[0].checkpoints.length, 3);
+    assert.equal(out.videos[0].checkpoints.length, 4);
     assert.equal(out.videos[0].checkpoints[2].beatsPctOfMyPastVideos?.views, 91);
     assert.equal(out.leverSummary[0].lever, "엔딩 CTA 카드");
-    assert.equal(out.leverSummary[0].avgPct, 45); // targets conversion, not views
+    assert.equal(out.leverSummary[0].avgPct, 40); // the latest checkpoint (day 28), and it targets conversion not views
   });
 });

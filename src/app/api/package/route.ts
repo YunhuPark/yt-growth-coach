@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getAnalysis } from "@/lib/analysis";
 import { errorResponse } from "@/lib/http";
-import { makePackage } from "@/lib/package";
+import { makeAnyPackage } from "@/lib/package";
 import { loadPackages, loadRecommendation, savePackages } from "@/lib/store";
 
 export const maxDuration = 120;
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       | undefined;
     const actions = (rec?.actions ?? []).slice(0, 7).map((x) => `[${x.kind}] ${x.title} — ${x.how}`);
 
-    const pack = await makePackage({
+    const pack = await makeAnyPackage({
       idea,
       channelTitle: a.channel.title,
       scored: a.videos,

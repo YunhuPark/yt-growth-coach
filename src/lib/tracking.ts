@@ -1,14 +1,21 @@
 import { gget, GoogleApiError } from "./google";
 import type { Scored } from "./metrics";
-import { loadBaseline, saveBaseline, type BaselineFile, type FrozenResult, type TrackEntry } from "./store";
+import { loadBaseline, saveBaseline, type BaselineFile, type BaselineSet, type FrozenResult, type TrackEntry } from "./store";
 import { mapPool, sleep } from "./util";
 
 const ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports";
 const DAY = 86400_000;
 
-/** Checkpoints: cumulative over the first N calendar days (publish day counts as day 1). */
-export const CHECKPOINTS = [1, 3, 7] as const;
+/**
+ * Checkpoints: cumulative over the first N calendar days (publish day counts as day 1).
+ * Day 28 is there for long-form, which keeps gaining views through search and suggestions for weeks.
+ */
+export const CHECKPOINTS = [1, 3, 7, 28] as const;
+export const MAX_DAY = CHECKPOINTS[CHECKPOINTS.length - 1];
 type N = (typeof CHECKPOINTS)[number];
+
+/** A baseline needs at least this many past videos to say anything about a new one. */
+export const MIN_BASELINE = 5;
 
 export type Cum = { views: number; cvr?: number; cta?: number; ret?: number };
 
@@ -88,47 +95,67 @@ export const isReady = (publishedAt: string, n: number, now = Date.now()) =>
 
 // ---------------------------------------------------------------- baseline
 
+const emptySet = (): BaselineSet => ({
+  n: 0,
+  byN: Object.fromEntries(CHECKPOINTS.map((n) => [String(n), { views: [], cvr: [], cta: [], ret: [] }])),
+});
+
 export async function buildBaseline(videos: Scored[]): Promise<BaselineFile> {
-  const byN: BaselineFile["byN"] = Object.fromEntries(
-    CHECKPOINTS.map((n) => [String(n), { views: [], cvr: [], cta: [], ret: [] }]),
-  );
-  const pool = videos.filter((v) => isReady(v.publishedAt, 7));
-  let used = 0;
-  await mapPool(pool, 4, async (v) => {
-    const rows = await fetchDays(v.id, v.publishedAt, 7);
-    if (!rows) return;
-    used++;
+  const acc = { short: emptySet(), long: emptySet() };
+  const pool = videos.filter((v) => isReady(v.publishedAt, CHECKPOINTS[0]));
+  const add = async (v: Scored) => {
+    const rows = await fetchDays(v.id, v.publishedAt, MAX_DAY);
+    if (!rows) return false;
+    const set = acc[v.format];
+    set.n++;
     for (const n of CHECKPOINTS) {
+      if (!isReady(v.publishedAt, n)) continue; // a young video can't speak for a later checkpoint
       const c = cumulative(rows, n);
       if (!c) continue;
-      const b = byN[String(n)];
+      const b = set.byN[String(n)];
       b.views.push(c.views);
       if (c.cvr !== undefined) b.cvr.push(c.cvr);
       if (c.cta !== undefined) b.cta.push(c.cta);
       if (c.ret !== undefined) b.ret.push(c.ret);
     }
-  });
-  for (const b of Object.values(byN)) for (const k of Object.keys(b) as (keyof typeof b)[]) b[k].sort((x, y) => x - y);
-  const file: BaselineFile = { at: new Date().toISOString(), n: used, byN };
+    return true;
+  };
+  const done = await mapPool(pool, 4, add);
+  // A transient failure shouldn't silently drop a video from the baseline: try those once more, one at a time.
+  for (const v of pool.filter((_, i) => !done[i])) {
+    await sleep(500);
+    await add(v);
+  }
+  const sets: BaselineFile["sets"] = {};
+  for (const f of ["short", "long"] as const) {
+    if (acc[f].n < MIN_BASELINE) continue;
+    for (const b of Object.values(acc[f].byN)) for (const k of Object.keys(b) as (keyof typeof b)[]) b[k].sort((x, y) => x - y);
+    sets[f] = acc[f];
+  }
+  const file: BaselineFile = { at: new Date().toISOString(), sets };
   await saveBaseline(file);
   return file;
 }
 
 const q = (sorted: number[], p: number) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : 0);
 
-export type BaselineSummary = {
-  at: string;
+export type SetSummary = {
   n: number;
   byN: Record<string, Record<Metric, { p25: number; p50: number; p75: number; p90: number }>>;
 };
+export type BaselineSummary = { at: string; sets: Partial<Record<"short" | "long", SetSummary>> };
 
 export function summarizeBaseline(b: BaselineFile): BaselineSummary {
-  const byN: BaselineSummary["byN"] = {};
-  for (const [n, m] of Object.entries(b.byN)) {
-    const s = (a: number[]) => ({ p25: q(a, 0.25), p50: q(a, 0.5), p75: q(a, 0.75), p90: q(a, 0.9) });
-    byN[n] = { views: s(m.views), cvr: s(m.cvr), cta: s(m.cta), ret: s(m.ret) };
+  const s = (a: number[]) => ({ p25: q(a, 0.25), p50: q(a, 0.5), p75: q(a, 0.75), p90: q(a, 0.9) });
+  const sets: BaselineSummary["sets"] = {};
+  for (const f of ["short", "long"] as const) {
+    const set = b.sets[f];
+    if (!set) continue;
+    const byN: SetSummary["byN"] = {};
+    for (const [n, m] of Object.entries(set.byN)) byN[n] = { views: s(m.views), cvr: s(m.cvr), cta: s(m.cta), ret: s(m.ret) };
+    sets[f] = { n: set.n, byN };
   }
-  return { at: b.at, n: b.n, byN };
+  return { at: b.at, sets };
 }
 
 /** Share of baseline videos this value beats, 0-100. */
@@ -155,6 +182,8 @@ export type Evaluated = TrackEntry & {
   checkpoints: CheckpointResult[];
   verdict: string;
   latestPct?: Partial<Record<Metric, number>>;
+  /** false when there is no usable baseline for this video's format (numbers are shown without a ranking) */
+  compared: boolean;
 };
 
 export const verdictFor = (p?: number) =>
@@ -183,7 +212,7 @@ export async function evaluate(entry: TrackEntry, baseline: BaselineFile | null,
     const hit = earlyCache.get(entry.videoId);
     if (!fresh && hit && Date.now() - hit.at < 30 * 60_000) rows = hit.rows;
     else {
-      rows = await fetchDays(entry.videoId, entry.publishedAt, 7);
+      rows = await fetchDays(entry.videoId, entry.publishedAt, MAX_DAY);
       earlyCache.set(entry.videoId, { at: Date.now(), rows });
     }
   }
@@ -202,9 +231,9 @@ export async function evaluate(entry: TrackEntry, baseline: BaselineFile | null,
     }
     const cum = rows ? cumulative(rows, n) : null;
     if (!ready || !cum) return { n, ready, cum: cum ?? undefined };
-    const b = baseline?.byN[String(n)];
+    const b = baseline?.sets[entry.format]?.byN[String(n)];
     const pct: CheckpointResult["pct"] = {};
-    if (b) {
+    if (b && b.views.length >= MIN_BASELINE) {
       pct.views = rank(cum.views, b.views);
       if (cum.cvr !== undefined) pct.cvr = rank(cum.cvr, b.cvr);
       if (cum.cta !== undefined) pct.cta = rank(cum.cta, b.cta);
@@ -214,11 +243,18 @@ export async function evaluate(entry: TrackEntry, baseline: BaselineFile | null,
   });
 
   const latest = [...checkpoints].reverse().find((c) => c.ready && c.pct && Object.keys(c.pct).length);
+  const anyReady = checkpoints.some((c) => c.ready && c.cum);
+  const formatName = entry.format === "long" ? "롱폼" : "쇼츠";
   return {
     ...entry,
     checkpoints,
     latestPct: latest?.pct,
-    verdict: latest ? `${latest.n}일차 ${verdictFor(latest.pct?.views)}` : "아직 1일차 집계 전",
+    compared: !!latest,
+    verdict: latest
+      ? `${latest.n}일차 ${verdictFor(latest.pct?.views)}`
+      : anyReady
+        ? `내 ${formatName} 기록이 부족해 비교 없이 숫자만 표시`
+        : "아직 1일차 집계 전",
   };
 }
 
@@ -253,7 +289,13 @@ export function learnFromLevers(evals: Evaluated[]): LeverResult[] {
 
 export async function getBaseline(videos: Scored[], force = false) {
   const existing = await loadBaseline();
-  if (existing && !force && Date.now() - Date.parse(existing.at) < 14 * DAY) return existing;
+  // Rebuild when it is old, was saved before long-form support, or lacks a checkpoint we now track.
+  const stale =
+    !existing ||
+    existing.legacy ||
+    Date.now() - Date.parse(existing.at) >= 14 * DAY ||
+    Object.values(existing.sets).some((s) => s && !s.byN[String(MAX_DAY)]);
+  if (existing && !force && !stale) return existing;
   return buildBaseline(videos);
 }
 

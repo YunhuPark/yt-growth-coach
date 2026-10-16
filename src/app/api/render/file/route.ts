@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const headers: Record<string, string> = { "Content-Type": "video/mp4", "Accept-Ranges": "bytes" };
-  if (url.searchParams.has("download")) headers["Content-Disposition"] = `attachment; filename="shorts-${id}.mp4"`;
+  if (url.searchParams.has("download")) headers["Content-Disposition"] = `attachment; filename="video-${id}.mp4"`;
 
   const m = /bytes=(\d*)-(\d*)/.exec(req.headers.get("range") ?? "");
   if (m && (m[1] || m[2])) {

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PatternRow, Scored, ChannelSummary } from "@/lib/metrics";
 import type { Candidate, Excluded, Profile } from "@/lib/discover";
-import type { Pack } from "@/lib/package";
+import type { LongPack, Pack } from "@/lib/package";
 import type { Idea, Recommendation } from "@/lib/recommend";
 import type { TrendData, TrendVideo } from "@/lib/trends";
 import type { Settings } from "@/lib/store";
 import type { ChannelInfo } from "@/lib/youtube";
-import { api, fmt } from "./shared";
+import { api, fmt, isLongPack } from "./shared";
 import Studio from "./Studio";
 import Tracking from "./Tracking";
 
@@ -626,7 +626,7 @@ const KIND = {
 } as const;
 
 type Saved = { at: string; goal: string; result: Recommendation };
-type SavedPack = { at: string; idea: Idea; pack: Pack };
+type SavedPack = { at: string; idea: Idea; pack: Pack | LongPack };
 
 function Recommend() {
   const [goal, setGoal] = useState("");
@@ -798,8 +798,31 @@ function CopyButton({ text, label = "복사" }: { text: string; label?: string }
 
 const NL = "\n";
 
-function packToMarkdown(idea: Idea, p: Pack) {
+/** "0:00 오프닝" lines, ready to paste into a YouTube description (needs 3+ chapters starting at 0:00). */
+const chapterBlock = (p: LongPack) => p.chapters.map((c) => `${c.time} ${c.title}`).join(NL);
+const longDescription = (p: LongPack) => `${p.description}${NL}${NL}${chapterBlock(p)}`;
+
+function packToMarkdown(idea: Idea, p: Pack | LongPack) {
   const section = (title: string, body: string) => `## ${title}${NL}${body}`;
+  if (isLongPack(p)) {
+    return [
+      `# ${idea.title}`,
+      section("권장 길이", `${p.target_length_min}분`),
+      section("제목 후보", p.titles.map((t, i) => `${i + 1}. ${t.text} (${t.style})`).join(NL)),
+      section("썸네일 안", p.thumbnails.map((t, i) => `${i + 1}. 글씨: ${t.overlay_text} / 장면: ${t.visual}`).join(NL)),
+      section("오프닝 자막", p.hook_caption),
+      section("오프닝 대본", p.opening_script),
+      section("챕터", p.chapters.map((c) => `- ${c.time} ${c.title} — ${c.purpose}`).join(NL)),
+      section("이탈 방지 장치", p.retention_tactics.map((t) => `- ${t.at} ${t.tactic}`).join(NL)),
+      section("중간 CTA", p.midroll_cta),
+      section("엔딩 화면 문구", p.ending_cta),
+      section("고정 댓글", p.pinned_comment),
+      section("설명", longDescription(p)),
+      section("해시태그", p.hashtags.join(" ")),
+      section("업로드", p.upload_slot),
+      section("확인할 것", p.fill_in.map((f) => `- [ ] ${f}`).join(NL)),
+    ].join(NL + NL);
+  }
   return [
     `# ${idea.title}`,
     section("제목 후보", p.titles.map((t, i) => `${i + 1}. ${t.text} (${t.style})`).join(NL)),
@@ -868,7 +891,28 @@ function PackagePanel({
               </button>
             </span>
           </summary>
-          <div className="mt-3 flex flex-col gap-3">
+          {isLongPack(p) ? <LongBody p={p} /> : <ShortBody p={p} />}
+        </details>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, copy, children }: { label: string; copy?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-0.5 flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-muted">{label}</h4>
+        {copy && <CopyButton text={copy} />}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function ShortBody({ p }: { p: Pack }) {
+  return (
+    <div className="mt-3 flex flex-col gap-3">
             <Field label="제목 후보">
               <ul className="space-y-1">
                 {p.titles.map((t) => (
@@ -901,21 +945,67 @@ function PackagePanel({
             <Field label="클립 확인 후 채울 것">
               <ul className="list-disc space-y-0.5 pl-5">{p.fill_in.map((f) => <li key={f}>{f}</li>)}</ul>
             </Field>
-          </div>
-        </details>
-      )}
     </div>
   );
 }
 
-function Field({ label, copy, children }: { label: string; copy?: string; children: React.ReactNode }) {
+function LongBody({ p }: { p: LongPack }) {
   return (
-    <div>
-      <div className="mb-0.5 flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-muted">{label}</h4>
-        {copy && <CopyButton text={copy} />}
-      </div>
-      <div>{children}</div>
+    <div className="mt-3 flex flex-col gap-3">
+      <Field label="권장 길이">{p.target_length_min}분</Field>
+      <Field label="제목 후보">
+        <ul className="space-y-1">
+          {p.titles.map((t) => (
+            <li key={t.text} className="flex items-start justify-between gap-2">
+              <span>
+                {t.text} <span className="text-xs text-muted">· {t.style}</span>
+              </span>
+              <CopyButton text={t.text} />
+            </li>
+          ))}
+        </ul>
+      </Field>
+      <Field label="썸네일 안">
+        <ul className="space-y-1.5">
+          {p.thumbnails.map((t, i) => (
+            <li key={i} className="flex items-start justify-between gap-2 rounded border border-line p-2 text-xs">
+              <span>
+                <b>“{t.overlay_text}”</b> <span className="text-muted">{t.visual}</span>
+              </span>
+              <CopyButton text={t.overlay_text} />
+            </li>
+          ))}
+        </ul>
+      </Field>
+      <Field label="오프닝 자막 (첫 5초)" copy={p.hook_caption}>{p.hook_caption}</Field>
+      <Field label="오프닝 대본 (처음 30초)" copy={p.opening_script}><span className="whitespace-pre-wrap">{p.opening_script}</span></Field>
+      <Field label="챕터 (시간은 실제 편집 길이에 맞게 고치세요)" copy={chapterBlock(p)}>
+        <ul className="space-y-1">
+          {p.chapters.map((c, i) => (
+            <li key={i} className="text-xs">
+              <b className="tabular-nums">{c.time}</b> {c.title} <span className="text-muted">— {c.purpose}</span>
+            </li>
+          ))}
+        </ul>
+      </Field>
+      <Field label="이탈 방지 장치">
+        <ul className="space-y-1">
+          {p.retention_tactics.map((t, i) => (
+            <li key={i} className="text-xs">
+              <b className="tabular-nums">{t.at}</b> {t.tactic}
+            </li>
+          ))}
+        </ul>
+      </Field>
+      <Field label="중간 CTA" copy={p.midroll_cta}>{p.midroll_cta}</Field>
+      <Field label="엔딩 화면 문구" copy={p.ending_cta}>{p.ending_cta}</Field>
+      <Field label="고정 댓글" copy={p.pinned_comment}><span className="whitespace-pre-wrap">{p.pinned_comment}</span></Field>
+      <Field label="설명 (챕터 목록 포함)" copy={longDescription(p)}><span className="whitespace-pre-wrap">{longDescription(p)}</span></Field>
+      <Field label="해시태그" copy={p.hashtags.join(" ")}>{p.hashtags.join(" ")}</Field>
+      <Field label="업로드">{p.upload_slot}</Field>
+      <Field label="영상 만든 뒤 채울 것">
+        <ul className="list-disc space-y-0.5 pl-5">{p.fill_in.map((f) => <li key={f}>{f}</li>)}</ul>
+      </Field>
     </div>
   );
 }

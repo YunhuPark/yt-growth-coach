@@ -83,12 +83,26 @@ export type FrozenResult = {
 export const loadTracking = () => readJson<TrackEntry[]>("tracking.json", []);
 export const saveTracking = (t: TrackEntry[]) => writeJson("tracking.json", t);
 
-export type BaselineFile = {
-  at: string;
+export type BaselineSet = {
   n: number; // videos used
   byN: Record<string, { views: number[]; cvr: number[]; cta: number[]; ret: number[] }>;
 };
-export const loadBaseline = () => readJson<BaselineFile | null>("baseline.json", null);
+/** Shorts and long-form are measured separately: their view curves and retention are not comparable. */
+export type BaselineFile = {
+  at: string;
+  sets: Partial<Record<"short" | "long", BaselineSet>>;
+  /** read from the old single-pool format; rebuilt on the next collection */
+  legacy?: boolean;
+};
+type LegacyBaseline = { at: string; n: number; byN: BaselineSet["byN"] };
+
+export async function loadBaseline(): Promise<BaselineFile | null> {
+  const raw = await readJson<BaselineFile | LegacyBaseline | null>("baseline.json", null);
+  if (!raw) return null;
+  if ("sets" in raw) return raw;
+  // Before long-form support the baseline was one pool built from a shorts-only channel: treat it as the shorts set.
+  return { at: raw.at, sets: { short: { n: raw.n, byN: raw.byN } }, legacy: true };
+}
 export const saveBaseline = (b: BaselineFile) => writeJson("baseline.json", b);
 
 export type CollectorState = {

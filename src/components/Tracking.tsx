@@ -31,7 +31,8 @@ const METRICS: { key: Metric; label: string; d: number; unit: string }[] = [
   { key: "cta", label: "CTA 반응(댓글+공유)", d: 2, unit: "%" },
   { key: "ret", label: "지속률", d: 0, unit: "%" },
 ];
-const DAYS = [1, 3, 7] as const;
+const DAYS = [1, 3, 7, 28] as const;
+const FORMAT_NAME = { short: "쇼츠", long: "롱폼" } as const;
 
 /** pct is the share of my past videos this one beat, so "top X%" is the complement. */
 const top = (pct?: number) => (pct === undefined ? undefined : Math.max(1, 100 - pct));
@@ -156,8 +157,8 @@ function Baseline({ b, busy, onBuild }: { b: BaselineSummary | null; busy: boole
       <section className="card flex flex-col gap-2">
         <h2 className="font-semibold">1단계 · 내 기준선 만들기</h2>
         <p className="text-sm text-muted">
-          새 영상이 잘 나왔는지 판단하려면 비교 기준이 필요합니다. 내 기존 영상들의 <b>첫 1·3·7일 성적</b>(조회수, 구독 전환, CTA 반응,
-          지속률)을 한 번 계산해 둡니다. 영상 수에 따라 30초~1분 걸립니다.
+          새 영상이 잘 나왔는지 판단하려면 비교 기준이 필요합니다. 내 기존 영상들의 <b>첫 1·3·7·28일 성적</b>(조회수, 구독 전환, CTA 반응,
+          지속률)을 쇼츠와 롱폼으로 나눠 한 번 계산해 둡니다. 영상 수에 따라 30초~1분 걸립니다.
         </p>
         <div>
           <button className="btn-primary" onClick={() => onBuild()} disabled={busy}>
@@ -167,46 +168,65 @@ function Baseline({ b, busy, onBuild }: { b: BaselineSummary | null; busy: boole
       </section>
     );
   }
+  const formats = (["short", "long"] as const).filter((f) => b.sets[f]);
   return (
     <section className="card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-semibold">내 기준선 · 이 숫자를 넘기면 기존보다 잘 나온 것</h2>
           <p className="text-xs text-muted">
-            기존 영상 {b.n}개의 첫 N일 누적 성적 · {new Date(b.at).toLocaleDateString("ko-KR")} 계산
+            내 기존 영상의 첫 N일 누적 성적, 쇼츠와 롱폼을 따로 비교합니다 · {new Date(b.at).toLocaleDateString("ko-KR")} 계산
           </p>
         </div>
         <button className="btn" onClick={() => onBuild(true)} disabled={busy}>
           {busy ? "다시 계산 중…" : "다시 계산"}
         </button>
       </div>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="text-left text-xs text-muted">
-            <tr>
-              <th className="py-1 pr-3">지표</th>
-              {DAYS.map((d) => (
-                <th key={d} className="px-2">{d}일차 <span className="font-normal">(중앙 · 상위25% · 상위10%)</span></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {METRICS.filter((m) => m.key !== "ret").map((m) => (
-              <tr key={m.key} className="border-t border-line">
-                <td className="py-1.5 pr-3">{m.label}</td>
-                {DAYS.map((d) => {
-                  const s = b.byN[String(d)]?.[m.key];
-                  return (
-                    <td key={d} className="px-2 text-xs">
-                      {s ? [s.p50, s.p75, s.p90].map((x) => `${fmt(x, m.d)}${m.unit}`).join(" · ") : "–"}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {formats.map((f) => {
+        const set = b.sets[f]!;
+        return (
+          <div key={f} className="mt-3 overflow-x-auto">
+            <h3 className="mb-1 text-sm font-medium">
+              {FORMAT_NAME[f]} 기준선 <span className="text-xs font-normal text-muted">· 영상 {set.n}개</span>
+            </h3>
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="text-left text-xs text-muted">
+                <tr>
+                  <th className="py-1 pr-3">지표</th>
+                  {DAYS.map((d) => (
+                    <th key={d} className="px-2">{d}일차 <span className="font-normal">(중앙 · 상위25% · 상위10%)</span></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {METRICS.filter((m) => m.key !== "ret").map((m) => (
+                  <tr key={m.key} className="border-t border-line">
+                    <td className="py-1.5 pr-3">{m.label}</td>
+                    {DAYS.map((d) => {
+                      const x = set.byN[String(d)]?.[m.key];
+                      return (
+                        <td key={d} className="px-2 text-xs">
+                          {x ? [x.p50, x.p75, x.p90].map((v) => `${fmt(v, m.d)}${m.unit}`).join(" · ") : "–"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+      {!b.sets.long && (
+        <p className="mt-3 rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
+          롱폼 기준선이 아직 없습니다. 내 롱폼 영상이 5개 이상 쌓이면 “다시 계산”으로 만들 수 있습니다. 그 전까지 롱폼 영상은 비교 없이 숫자만 표시됩니다.
+        </p>
+      )}
+      {!b.sets.short && (
+        <p className="mt-3 rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
+          쇼츠 기준선이 아직 없습니다. 내 쇼츠가 5개 이상 쌓이면 만들 수 있습니다.
+        </p>
+      )}
     </section>
   );
 }

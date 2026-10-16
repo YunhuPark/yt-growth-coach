@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Pack } from "@/lib/package";
+import type { LongPack, Pack } from "@/lib/package";
 import type { Idea } from "@/lib/recommend";
 import type { SourceResult } from "@/lib/sources";
-import { api, fmt } from "./shared";
+import { api, fmt, isLongPack } from "./shared";
 
-type SavedPack = { at: string; idea: Idea; pack: Pack };
+type SavedPack = { at: string; idea: Idea; pack: Pack | LongPack };
 type Cap = { start: string; end: string; text: string };
 type Basis = "own_footage" | "licensed" | "rights_holder_permission";
 
@@ -28,6 +28,12 @@ const mins = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)}시간` : `${M
 const parseRange = (t: string): [number, number] | null => {
   const m = /(\d+(?:\.\d+)?)\s*[–\-~]\s*(\d+(?:\.\d+)?)/.exec(t);
   return m ? [Number(m[1]), Number(m[2])] : null;
+};
+
+/** "1:30" or "1:02:03" -> seconds; null if it isn't a clock time */
+const parseClock = (t: string): number | null => {
+  const m = /^\s*(?:(\d+):)?(\d{1,2}):(\d{2})\s*$/.exec(t);
+  return m ? (m[1] ? Number(m[1]) * 3600 : 0) + Number(m[2]) * 60 + Number(m[3]) : null;
 };
 
 const PLACEHOLDER = /\[[^\]]*\]/;
@@ -193,53 +199,106 @@ function Sources({ idea }: { idea: Idea }) {
 
 // ---------------------------------------------------------------- B. edit automation
 
-function Edit({ pack }: { pack: Pack }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [fit, setFit] = useState<"blur" | "cover">("blur");
-  const [trimStart, setTrimStart] = useState("");
-  const [trimEnd, setTrimEnd] = useState("");
-  const [hook, setHook] = useState(pack.hook_caption);
-  const [hookSec, setHookSec] = useState("2.2");
-  const [caps, setCaps] = useState<Cap[]>(() =>
-    pack.shot_plan
+type RenderStatus = {
+  status: "running" | "done" | "error";
+  progress: number;
+  error?: string;
+  result?: { durationSec: number; bytes: number; layout: "short" | "long" };
+};
+
+/** Starting values for the overlay form, taken from the package. */
+function initialOverlay(pack: Pack | LongPack) {
+  if (isLongPack(pack)) {
+    // Chapter title cards: each chapter after the first, shown for a few seconds from its start time.
+    const chapters = pack.chapters
+      .map((c) => ({ at: parseClock(c.time), title: c.title }))
+      .filter((c): c is { at: number; title: string } => c.at !== null && c.at > 0);
+    return {
+      layout: "long" as const,
+      hook: pack.hook_caption,
+      hookSec: "5",
+      caps: chapters.map((c, i) => {
+        const next = chapters[i + 1]?.at ?? Infinity;
+        return { start: String(c.at), end: String(Math.min(c.at + 5, next)), text: c.title };
+      }),
+      ending: pack.ending_cta,
+      endSec: "8",
+    };
+  }
+  return {
+    layout: "short" as const,
+    hook: pack.hook_caption,
+    hookSec: "2.2",
+    caps: pack.shot_plan
       .map((s) => ({ r: parseRange(s.time), text: s.caption }))
       .filter((x) => x.r && x.text.trim() && x.text.trim() !== pack.hook_caption.trim())
       .map((x) => ({ start: String(x.r![0]), end: String(x.r![1]), text: x.text })),
-  );
-  const [ending, setEnding] = useState(pack.ending_cta);
-  const [endSec, setEndSec] = useState("1.6");
+    ending: pack.ending_cta,
+    endSec: "1.6",
+  };
+}
+
+function Edit({ pack }: { pack: Pack | LongPack }) {
+  const init = initialOverlay(pack);
+  const long = init.layout === "long";
+  const [file, setFile] = useState<File | null>(null);
+  const [sourcePath, setSourcePath] = useState("");
+  const [fit, setFit] = useState<"blur" | "cover">("blur");
+  const [trimStart, setTrimStart] = useState("");
+  const [trimEnd, setTrimEnd] = useState("");
+  const [hook, setHook] = useState(init.hook);
+  const [hookSec, setHookSec] = useState(init.hookSec);
+  const [caps, setCaps] = useState<Cap[]>(init.caps);
+  const [ending, setEnding] = useState(init.ending);
+  const [endSec, setEndSec] = useState(init.endSec);
   const [basis, setBasis] = useState<Basis | "">("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [out, setOut] = useState<{ id: string; durationSec: number; bytes: number } | null>(null);
+  const [out, setOut] = useState<{ id: string; durationSec: number; bytes: number; layout: "short" | "long" } | null>(null);
 
   const blanks = [hook, ending, ...caps.map((c) => c.text)].filter((t) => PLACEHOLDER.test(t));
-  const ready = !!file && confirmed && !!basis && blanks.length === 0 && !busy;
+  const hasSource = !!file || !!sourcePath.trim();
+  const ready = hasSource && confirmed && !!basis && blanks.length === 0 && !busy;
 
   const render = async () => {
-    if (!file || !basis) return;
+    if (!basis) return;
     setBusy(true);
     setError(null);
     setOut(null);
+    setProgress(0);
     const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
     const options = {
+      layout: init.layout,
       fit,
       trimStart: num(trimStart),
       trimEnd: num(trimEnd),
-      hook: hook.trim() ? { text: hook, seconds: Number(hookSec) || 2.2 } : undefined,
+      hook: hook.trim() ? { text: hook, seconds: Number(hookSec) || Number(init.hookSec) } : undefined,
       captions: caps.map((c) => ({ start: Number(c.start) || 0, end: Number(c.end) || 0, text: c.text })),
-      ending: ending.trim() ? { text: ending, seconds: Number(endSec) || 1.6 } : undefined,
+      ending: ending.trim() ? { text: ending, seconds: Number(endSec) || Number(init.endSec) } : undefined,
+      sourcePath: !file && sourcePath.trim() ? sourcePath.trim() : undefined,
       rights: { confirmed: true, basis },
     };
     const fd = new FormData();
-    fd.append("file", file);
+    if (file) fd.append("file", file);
     fd.append("options", JSON.stringify(options));
     try {
       const res = await fetch("/api/render", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `렌더링 실패 (${res.status})`);
-      setOut(json);
+      const id = json.id as string;
+      // The server renders in the background; poll for progress until it finishes.
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const st = await api<RenderStatus>(`/api/render/status?id=${id}`);
+        setProgress(st.progress);
+        if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
+        if (st.status === "done" && st.result) {
+          setOut({ id, ...st.result });
+          break;
+        }
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -252,21 +311,32 @@ function Edit({ pack }: { pack: Pack }) {
   return (
     <section className="card flex flex-col gap-4">
       <div>
-        <h2 className="font-semibold">B. 편집 자동화</h2>
+        <h2 className="font-semibold">B. 편집 자동화 · {long ? "롱폼 (1920×1080 가로)" : "쇼츠 (1080×1920 세로)"}</h2>
         <p className="text-xs text-muted">
-          내가 가진 영상 파일에 세로 변환, 훅 자막, 구간 자막, 엔딩 CTA 카드를 입혀 쇼츠 규격(1080×1920) mp4로 만듭니다. 파일은 이 컴퓨터에서만 처리되고
-          업로드는 직접 하셔야 합니다.
+          {long
+            ? "내가 가진 영상 파일에 오프닝 자막, 챕터 제목 카드, 엔딩 화면 문구를 입혀 1920×1080 mp4로 만듭니다. 길이에 따라 몇 분 걸리고 진행률이 표시됩니다."
+            : "내가 가진 영상 파일에 세로 변환, 훅 자막, 구간 자막, 엔딩 CTA 카드를 입혀 쇼츠 규격(1080×1920) mp4로 만듭니다."}{" "}
+          파일은 이 컴퓨터에서만 처리되고 업로드는 직접 하셔야 합니다.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field sm:col-span-2">영상 파일 (mp4, mov, webm, mkv · 최대 600MB)
+        <label className="field">영상 파일 올리기 (mp4, mov, webm, mkv · 최대 600MB)
           <input className="input" type="file" accept="video/*,.mkv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        </label>
+        <label className="field">또는 이 컴퓨터의 파일 경로 (큰 파일용)
+          <input
+            className="input"
+            placeholder="D:\영상\원본.mp4"
+            value={sourcePath}
+            disabled={!!file}
+            onChange={(e) => setSourcePath(e.target.value)}
+          />
         </label>
         <label className="field">화면 맞춤
           <select className="input" value={fit} onChange={(e) => setFit(e.target.value as typeof fit)}>
-            <option value="blur">전체 화면 유지 + 배경 블러 (가로 영상에 추천)</option>
-            <option value="cover">꽉 채우기 (좌우 잘림)</option>
+            <option value="blur">전체 화면 유지 + 배경 블러 ({long ? "세로 영상에 추천" : "가로 영상에 추천"})</option>
+            <option value="cover">꽉 채우기 (넘치는 부분 잘림)</option>
           </select>
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -280,7 +350,7 @@ function Edit({ pack }: { pack: Pack }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
-        <label className="field">첫 화면 훅 자막
+        <label className="field">{long ? "오프닝 자막" : "첫 화면 훅 자막"}
           <input className="input" value={hook} onChange={(e) => setHook(e.target.value)} />
         </label>
         <label className="field">표시 시간(초)
@@ -290,7 +360,9 @@ function Edit({ pack }: { pack: Pack }) {
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <span className="text-xs text-muted">구간 자막 (시작–끝 초는 자른 뒤 영상 기준)</span>
+          <span className="text-xs text-muted">
+            {long ? "챕터 제목 카드 (시작–끝 초는 자른 뒤 영상 기준, 챕터 시간은 실제 편집 길이에 맞게 고쳐 주세요)" : "구간 자막 (시작–끝 초는 자른 뒤 영상 기준)"}
+          </span>
           <button className="btn" onClick={() => setCaps([...caps, { start: "", end: "", text: "" }])}>+ 자막 추가</button>
         </div>
         <ul className="space-y-2">
@@ -306,7 +378,7 @@ function Edit({ pack }: { pack: Pack }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
-        <label className="field">엔딩 CTA 카드
+        <label className="field">{long ? "엔딩 화면 문구 (위쪽에 표시, 가운데·아래는 YouTube 엔드 화면 자리)" : "엔딩 CTA 카드"}
           <input className="input" value={ending} onChange={(e) => setEnding(e.target.value)} />
         </label>
         <label className="field">표시 시간(초)
@@ -331,22 +403,28 @@ function Edit({ pack }: { pack: Pack }) {
 
       {blanks.length > 0 && (
         <p className="rounded-md border border-line bg-card px-3 py-2 text-sm text-muted">
-          아직 빈칸이 남아 있습니다: {blanks.map((b) => `“${b}”`).join(", ")} — 클립을 보고 실제 내용으로 바꾼 뒤 렌더링하세요.
+          아직 빈칸이 남아 있습니다: {blanks.map((b) => `“${b}”`).join(", ")} — 영상을 보고 실제 내용으로 바꾼 뒤 렌더링하세요.
         </p>
       )}
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
-      <div>
-        <button className="btn-primary" onClick={render} disabled={!ready}>
-          {busy ? "렌더링 중… (영상 길이에 따라 10초~수 분)" : "쇼츠 영상 만들기"}
+      <div className="flex flex-col gap-2">
+        <button className="btn-primary w-fit" onClick={render} disabled={!ready}>
+          {busy ? `렌더링 중… ${Math.round(progress * 100)}%` : long ? "롱폼 영상 만들기" : "쇼츠 영상 만들기"}
         </button>
+        {busy && (
+          <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(progress * 100)}>
+            <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        )}
       </div>
 
       {out && (
         <div className="flex flex-col items-start gap-2">
-          <video className="max-h-[560px] rounded-md border border-line" controls src={`/api/render/file?id=${out.id}`} />
+          <video className="max-h-[560px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${out.id}`} />
           <p className="text-xs text-muted">
-            {out.durationSec}초 · {(out.bytes / 1024 / 1024).toFixed(1)}MB · 1080×1920
+            {out.durationSec >= 120 ? `${Math.floor(out.durationSec / 60)}분 ${Math.round(out.durationSec % 60)}초` : `${out.durationSec}초`} ·{" "}
+            {(out.bytes / 1024 / 1024).toFixed(1)}MB · {out.layout === "long" ? "1920×1080" : "1080×1920"}
           </p>
           <a className="btn-primary" href={`/api/render/file?id=${out.id}&download=1`}>mp4 다운로드</a>
         </div>
