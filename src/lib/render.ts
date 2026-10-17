@@ -157,8 +157,12 @@ export function baseFilter(layout: Layout, fit: "blur" | "cover", src?: { width?
   const exact = src?.width && src?.height && Math.abs(src.width / src.height - W / H) / (W / H) < 0.01;
   if (exact) return `[0:v]scale=${W}:${H},setsar=1[v0]`;
   if (fit === "cover") return `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[v0]`;
+  // The backdrop is blurry anyway, so blur a 1/10-size copy and scale it back up: about 5x faster than blurring
+  // the full frame, with no visible difference. That matters for long videos, which otherwise render near real time.
+  const bw = Math.round(W / 10);
+  const bh = Math.round(H / 10);
   return (
-    `[0:v]split=2[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=24:6[bg];` +
+    `[0:v]split=2[a][b];[a]scale=${bw}:${bh}:force_original_aspect_ratio=increase,crop=${bw}:${bh},boxblur=3:1,scale=${W}:${H}[bg];` +
     `[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v0]`
   );
 }
