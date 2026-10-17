@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getAnalysis } from "@/lib/analysis";
 import { errorResponse } from "@/lib/http";
+import { refineFormats } from "@/lib/shorts";
 import { loadBaseline, loadRecommendation, loadTracking, saveTracking, type TrackEntry } from "@/lib/store";
 import { evaluate, learnFromLevers, LEVERS, summarizeBaseline } from "@/lib/tracking";
 import { mapPool, parseVideoId } from "@/lib/util";
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
     if (d.channelId !== a.channel.id) {
       return Response.json({ error: "내 채널의 영상만 추적할 수 있습니다." }, { status: 400 });
     }
+    await refineFormats([d]); // shorts vs long-form decides which baseline this video is compared with
 
     const valid = new Set<string>(LEVERS.map((l) => l.id));
     const entries = await loadTracking();

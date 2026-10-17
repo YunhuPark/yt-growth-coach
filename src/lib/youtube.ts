@@ -1,4 +1,7 @@
 import { gget, GoogleApiError } from "./google";
+import { formatCheckNotes, refineFormats, SHORT_MAX_SEC } from "./shorts";
+
+export { SHORT_MAX_SEC };
 
 const DATA = "https://www.googleapis.com/youtube/v3";
 const ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports";
@@ -43,7 +46,6 @@ export function parseDuration(iso: string): number {
 }
 
 // YouTube Shorts can be up to 3 minutes since Oct 2024.
-export const SHORT_MAX_SEC = 180;
 
 type ChannelsResp = {
   items?: {
@@ -212,6 +214,9 @@ export async function loadMyChannel(max = 200): Promise<MyChannelData> {
   const ids = await recentVideoIds(channel.uploadsPlaylistId, max);
   const videos: VideoStat[] = await videoDetails(ids);
   if (videos.length === 0) return { channel, videos, notes: ["업로드된 영상이 없습니다."] };
+
+  // The duration rule is only a first guess; ask YouTube whether each video of 3 minutes or less is really a Short.
+  notes.push(...formatCheckNotes(await refineFormats(videos)));
 
   const start = videos.map((v) => v.publishedAt).sort()[0].slice(0, 10);
   const end = ymd(new Date());

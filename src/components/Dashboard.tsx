@@ -213,7 +213,7 @@ function Diagnosis({ a }: { a: Extract<Analysis, { connected: true }> }) {
           return (
             <div key={f} className="card">
               <p className="text-sm text-muted">
-                {f === "long" ? "롱폼" : "쇼츠(3분 이하)"} · {s.n ? `평가 ${s.n}개` : "평가할 영상 없음"}
+                {f === "long" ? "롱폼" : "쇼츠"} · {s.n ? `평가 ${s.n}개` : "평가할 영상 없음"}
               </p>
               <dl className="mt-2 grid grid-cols-3 gap-2">
                 <Stat label="일평균 조회수(중앙값)" value={s.n ? fmt(s.medianViewsPerDay) : "–"} />

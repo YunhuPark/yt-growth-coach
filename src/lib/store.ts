@@ -127,3 +127,7 @@ export type CollectEvent = {
 };
 export const loadEvents = () => readJson<CollectEvent[]>("events.json", []);
 export const saveEvents = (e: CollectEvent[]) => writeJson("events.json", e.slice(0, 200));
+
+/** Whether YouTube treats a video as a Short, by video id. A video never changes, so answers are kept for good. */
+export const loadShortsCache = () => readJson<Record<string, boolean>>("shorts.json", {});
+export const saveShortsCache = (c: Record<string, boolean>) => writeJson("shorts.json", c);
