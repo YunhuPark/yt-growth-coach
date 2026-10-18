@@ -13,6 +13,8 @@ export type RenderOpts = {
   fit: "blur" | "cover"; // blur: whole frame over a blurred copy; cover: fill the frame and crop the overflow
   trimStart?: number;
   trimEnd?: number;
+  /** Keep only these source ranges (seconds), joined in order. Replaces trimStart/trimEnd; captions then use the joined timeline. */
+  segments?: { start: number; end: number }[];
   hook?: { text: string; seconds: number };
   captions: { start: number; end: number; text: string }[];
   ending?: { text: string; seconds: number };
@@ -68,17 +70,25 @@ async function findFont() {
   throw new Error("한글 폰트를 찾지 못했습니다. 맑은 고딕이나 나눔고딕을 설치해 주세요.");
 }
 
-function run(
+/**
+ * Runs the bundled ffmpeg. `stderr` in the result keeps only the last 8 KB; pass `onStderr` to see all of it
+ * (analysis passes print one line per silence or scene change and need the whole log).
+ */
+export function run(
   args: string[],
   cwd: string,
   timeoutMs = 10 * 60_000,
   onStdout?: (chunk: string) => void,
+  onStderr?: (chunk: string) => void,
 ): Promise<{ code: number | null; stderr: string }> {
   return new Promise((resolve, reject) => {
     // stdin is closed: ffmpeg never needs it here, and an idle open pipe can leave it waiting for keystrokes.
     const p = spawn(FFMPEG, ["-nostdin", ...args], { cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let stderr = "";
-    p.stderr.on("data", (d) => (stderr = (stderr + d).slice(-8000)));
+    p.stderr.on("data", (d) => {
+      stderr = (stderr + d).slice(-8000);
+      onStderr?.(String(d));
+    });
     if (onStdout) p.stdout.on("data", (d) => onStdout(String(d)));
     else p.stdout.resume();
     const timer = setTimeout(() => {
@@ -96,7 +106,7 @@ function run(
   });
 }
 
-export type Probe = { duration: number; width?: number; height?: number };
+export type Probe = { duration: number; width?: number; height?: number; hasAudio: boolean };
 
 /** Duration and displayed frame size, read from ffmpeg's banner (it exits non-zero without an output, that's fine). */
 export async function probe(input: string, cwd: string): Promise<Probe> {
@@ -110,7 +120,7 @@ export async function probe(input: string, cwd: string): Promise<Probe> {
   // Phone footage is often stored sideways with a rotation tag; ffmpeg rotates it, so the shown size is swapped.
   const rot = /rotation of (-?\d+(?:\.\d+)?) degrees/.exec(stderr);
   if (rot && width && height && Math.abs(Math.round(Number(rot[1]))) % 180 === 90) [width, height] = [height, width];
-  return { duration, width, height };
+  return { duration, width, height, hasAudio: /Stream #\d+:\d+[^\n]*Audio:/.test(stderr) };
 }
 
 /** Wrap on spaces to roughly `max` full-width characters per line; drop emoji the font can't draw. */
@@ -152,19 +162,33 @@ export function wrap(text: string, max: number): string {
 const sec = (n: number) => n.toFixed(2);
 
 /** The video filter that turns the source into the layout's frame. Exact-aspect sources skip the costly blur. */
-export function baseFilter(layout: Layout, fit: "blur" | "cover", src?: { width?: number; height?: number }): string {
+export function baseFilter(layout: Layout, fit: "blur" | "cover", src?: { width?: number; height?: number }, input = "0:v"): string {
   const { w: W, h: H } = LAYOUTS[layout];
   const exact = src?.width && src?.height && Math.abs(src.width / src.height - W / H) / (W / H) < 0.01;
-  if (exact) return `[0:v]scale=${W}:${H},setsar=1[v0]`;
-  if (fit === "cover") return `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[v0]`;
+  if (exact) return `[${input}]scale=${W}:${H},setsar=1[v0]`;
+  if (fit === "cover") return `[${input}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[v0]`;
   // The backdrop is blurry anyway, so blur a 1/10-size copy and scale it back up: about 5x faster than blurring
   // the full frame, with no visible difference. That matters for long videos, which otherwise render near real time.
   const bw = Math.round(W / 10);
   const bh = Math.round(H / 10);
   return (
-    `[0:v]split=2[a][b];[a]scale=${bw}:${bh}:force_original_aspect_ratio=increase,crop=${bw}:${bh},boxblur=3:1,scale=${W}:${H}[bg];` +
+    `[${input}]split=2[a][b];[a]scale=${bw}:${bh}:force_original_aspect_ratio=increase,crop=${bw}:${bh},boxblur=3:1,scale=${W}:${H}[bg];` +
     `[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v0]`
   );
+}
+
+/** Validates keep-ranges against the file: inside it, in order, not overlapping, each at least half a second. */
+export function joinSegments(segments: { start: number; end: number }[], duration: number): { start: number; end: number }[] {
+  const out: { start: number; end: number }[] = [];
+  for (const x of segments) {
+    if (!(Number.isFinite(x.start) && Number.isFinite(x.end)) || x.start < 0 || x.end > duration + 0.05) {
+      throw new Error("남길 구간이 영상 길이를 벗어났습니다. 구간 시간을 확인해 주세요.");
+    }
+    if (x.end - x.start < 0.5) throw new Error("남길 구간은 0.5초 이상이어야 합니다.");
+    if (out.length && x.start < out[out.length - 1].end) throw new Error("남길 구간이 서로 겹치거나 시간 순서가 맞지 않습니다.");
+    out.push({ start: x.start, end: Math.min(x.end, duration) });
+  }
+  return out;
 }
 
 export async function renderVideo(
@@ -179,9 +203,10 @@ export async function renderVideo(
   await fs.copyFile(await findFont(), path.join(dir, "font.ttf"));
 
   const info = await probe(input, dir);
-  const start = Math.max(0, opts.trimStart ?? 0);
-  const end = Math.min(info.duration, opts.trimEnd && opts.trimEnd > 0 ? opts.trimEnd : info.duration);
-  const outDur = end - start;
+  const segs = opts.segments?.length ? joinSegments(opts.segments, info.duration) : null;
+  const start = segs ? 0 : Math.max(0, opts.trimStart ?? 0);
+  const end = segs ? info.duration : Math.min(info.duration, opts.trimEnd && opts.trimEnd > 0 ? opts.trimEnd : info.duration);
+  const outDur = segs ? segs.reduce((n, x) => n + x.end - x.start, 0) : end - start;
   if (outDur < 1) throw new Error("자르고 남은 길이가 1초 미만입니다. 시작/끝 시간을 확인해 주세요.");
   if (outDur > L.maxSec) {
     throw new Error(
@@ -230,7 +255,20 @@ export async function renderVideo(
     );
   }
 
-  const graph = `${baseFilter(layout, opts.fit, info)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
+  // With segments, every kept range is cut out and the pieces are joined first; the layout filter then runs on the result.
+  let pre = "";
+  let vin = "0:v";
+  if (segs) {
+    const parts = segs.map((x, i) => {
+      const v = `[0:v]trim=start=${sec(x.start)}:end=${sec(x.end)},setpts=PTS-STARTPTS[sv${i}]`;
+      const a = info.hasAudio ? `;[0:a]atrim=start=${sec(x.start)}:end=${sec(x.end)},asetpts=PTS-STARTPTS[sa${i}]` : "";
+      return v + a;
+    });
+    const labels = segs.map((_, i) => `[sv${i}]${info.hasAudio ? `[sa${i}]` : ""}`).join("");
+    pre = `${parts.join(";")};${labels}concat=n=${segs.length}:v=1:a=${info.hasAudio ? 1 : 0}[cv]${info.hasAudio ? "[ca]" : ""};`;
+    vin = "cv";
+  }
+  const graph = `${pre}${baseFilter(layout, opts.fit, info, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
 
   // ffmpeg reports its position on stdout (out_time_us / out_time_ms, both in microseconds).
   let buffer = "";
@@ -247,9 +285,9 @@ export async function renderVideo(
   const { code, stderr } = await run(
     [
       "-y", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1", "-nostats",
-      "-ss", sec(start), "-i", input, "-t", sec(outDur),
+      ...(segs ? ["-i", input] : ["-ss", sec(start), "-i", input, "-t", sec(outDur)]),
       "-filter_complex", graph,
-      "-map", "[vout]", "-map", "0:a?",
+      "-map", "[vout]", ...(segs ? (info.hasAudio ? ["-map", "[ca]"] : []) : ["-map", "0:a?"]),
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
       "output.mp4",

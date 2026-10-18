@@ -4,18 +4,11 @@ import { useEffect, useState } from "react";
 import type { LongPack, Pack } from "@/lib/package";
 import type { Idea } from "@/lib/recommend";
 import type { SourceResult } from "@/lib/sources";
-import { api, fmt, isLongPack } from "./shared";
+import AutoEdit from "./AutoEdit";
+import { api, BASIS, fmt, isLongPack, type Basis } from "./shared";
 
 type SavedPack = { at: string; idea: Idea; pack: Pack | LongPack };
 type Cap = { start: string; end: string; text: string };
-type Basis = "own_footage" | "licensed" | "rights_holder_permission";
-
-const BASIS: { id: Basis; label: string }[] = [
-  { id: "own_footage", label: "제가 직접 촬영한 영상" },
-  { id: "licensed", label: "라이선스를 취득한 영상" },
-  { id: "rights_holder_permission", label: "권리자에게 사용 허락을 받은 영상" },
-];
-
 const clock = (s: number) => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -75,6 +68,7 @@ export default function Studio() {
       {saved && (
         <>
           <Sources idea={saved.idea} />
+          <AutoEdit key={`auto-${key}`} idea={saved.idea} pack={saved.pack} />
           <Edit key={key} pack={saved.pack} />
         </>
       )}

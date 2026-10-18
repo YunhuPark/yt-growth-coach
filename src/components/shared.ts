@@ -12,3 +12,11 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
 
 /** Packages saved before long-form support have no `kind`; they are short packages. */
 export const isLongPack = (p: Pack | LongPack): p is LongPack => "chapters" in p;
+
+export type Basis = "own_footage" | "licensed" | "rights_holder_permission";
+
+export const BASIS: { id: Basis; label: string }[] = [
+  { id: "own_footage", label: "제가 직접 촬영한 영상" },
+  { id: "licensed", label: "라이선스를 취득한 영상" },
+  { id: "rights_holder_permission", label: "권리자에게 사용 허락을 받은 영상" },
+];
