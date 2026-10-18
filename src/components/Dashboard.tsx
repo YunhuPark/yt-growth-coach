@@ -9,6 +9,7 @@ import type { TrendData, TrendVideo } from "@/lib/trends";
 import type { Settings } from "@/lib/store";
 import type { ChannelInfo } from "@/lib/youtube";
 import { api, fmt, isLongPack } from "./shared";
+import OneClick from "./OneClick";
 import Studio from "./Studio";
 import Tracking from "./Tracking";
 
@@ -49,11 +50,13 @@ export default function Dashboard() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
 
+  // Re-read the unread count whenever the tab changes, so a notification that arrived meanwhile (a finished
+  // preparation, a new upload) shows up in the tab title without a page reload.
   useEffect(() => {
     api<{ unread: number }>("/api/collect")
       .then((c) => setUnread(c.unread))
       .catch(() => {});
-  }, []);
+  }, [tab]);
 
   const load = useCallback((refresh = false) => {
     return api<Analysis>(`/api/analysis${refresh ? "?refresh=1" : ""}`)
@@ -636,12 +639,17 @@ function Recommend() {
   const [saved, setSaved] = useState<Saved | null>(null);
   const [packs, setPacks] = useState<Record<string, SavedPack>>({});
 
-  useEffect(() => {
+  // Loads the saved recommendation and packages; also called after a one-click preparation finishes.
+  const loadSaved = useCallback(() => {
     api<Saved | null>("/api/recommend")
       .then((s) => s && s.result && "headline" in s.result && setSaved(s))
       .catch(() => {});
     api<Record<string, SavedPack>>("/api/package").then(setPacks).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadSaved();
+  }, [loadSaved]);
 
   const run = async () => {
     setBusy(true);
@@ -666,6 +674,7 @@ function Recommend() {
 
   return (
     <div className="flex flex-col gap-5">
+      <OneClick goal={goal} onDone={loadSaved} />
       <section className="card flex flex-col gap-3">
         <label className="field">이번 목표 (선택)
           <input className="input" placeholder="예: 구독자 1,000명 달성, 쇼츠로 신규 유입" value={goal}

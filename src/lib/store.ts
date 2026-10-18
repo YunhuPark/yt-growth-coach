@@ -29,11 +29,21 @@ export async function clearTokens() {
   await fs.rm(path.join(DIR, "tokens.json"), { force: true });
 }
 
+/** Weekly auto-preparation: the day (0 = Sunday) and hour (0-23, this computer's local time) to run. */
+export type Weekly = {
+  enabled: boolean;
+  day: number;
+  hour: number;
+  /** when it was switched on; the first run waits for the next scheduled moment instead of firing immediately */
+  since?: string;
+};
+
 export type Settings = {
   regionCode: string; // e.g. "KR"
   categoryId: string; // YouTube videoCategoryId, "" = all
   competitors: string[]; // @handles or channel IDs (UC...)
   keywords: string[]; // niche keywords for trend search
+  weekly: Weekly;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -41,12 +51,13 @@ export const DEFAULT_SETTINGS: Settings = {
   categoryId: "",
   competitors: [],
   keywords: [],
+  weekly: { enabled: false, day: 0, hour: 9 },
 };
 
-export const loadSettings = async (): Promise<Settings> => ({
-  ...DEFAULT_SETTINGS,
-  ...(await readJson<Partial<Settings>>("settings.json", {})),
-});
+export const loadSettings = async (): Promise<Settings> => {
+  const saved = await readJson<Partial<Settings>>("settings.json", {});
+  return { ...DEFAULT_SETTINGS, ...saved, weekly: { ...DEFAULT_SETTINGS.weekly, ...saved.weekly } };
+};
 export const saveSettings = (s: Settings) => writeJson("settings.json", s);
 
 export type SavedRecommendation = { at: string; goal: string; result: unknown };
@@ -118,7 +129,7 @@ export const saveCollector = (c: CollectorState) => writeJson("collector.json", 
 export type CollectEvent = {
   id: string;
   at: string;
-  type: "new_video" | "checkpoint";
+  type: "new_video" | "checkpoint" | "prepared";
   videoId: string;
   title: string;
   n?: number;
@@ -131,3 +142,19 @@ export const saveEvents = (e: CollectEvent[]) => writeJson("events.json", e.slic
 /** Whether YouTube treats a video as a Short, by video id. A video never changes, so answers are kept for good. */
 export const loadShortsCache = () => readJson<Record<string, boolean>>("shorts.json", {});
 export const saveShortsCache = (c: Record<string, boolean>) => writeJson("shorts.json", c);
+
+/** The outcome of the last "one-click preparation" run, kept so the page can show it after a reload. */
+export type PrepRecord = {
+  at: string;
+  trigger: "manual" | "weekly";
+  steps: { key: string; label: string; status: "done" | "skipped" | "failed"; detail?: string }[];
+  ideas: string[]; // titles of the recommended ideas
+  packages: string[]; // titles that got a production package
+  sourcesFor?: string;
+};
+export const loadPrep = () => readJson<PrepRecord | null>("prep.json", null);
+export const savePrep = (r: PrepRecord) => writeJson("prep.json", r);
+
+/** When the weekly job last tried to run, successful or not, so a failing run isn't retried every few minutes. */
+export const loadPrepAttempt = () => readJson<{ at: string } | null>("prep-attempt.json", null);
+export const savePrepAttempt = (a: { at: string }) => writeJson("prep-attempt.json", a);

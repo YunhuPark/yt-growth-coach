@@ -16,6 +16,8 @@ const Idea = z.object({
 });
 
 export type Idea = z.infer<typeof Idea>;
+/** The idea shape, for validating ideas sent back from the browser. */
+export const IdeaSchema = Idea;
 
 export const Recommendation = z.object({
   headline: z.string().describe("채널의 현재 상황과 가장 큰 병목을 한 문장으로 (60자 안팎)"),
