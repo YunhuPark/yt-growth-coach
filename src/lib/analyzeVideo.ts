@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { probe, run, type Probe } from "./render";
+import type { Transcript } from "./transcribe";
 
 // Turns a video file into numbers and a few still frames that a model can reason about:
 // where the picture changes, where it goes quiet, how loud each second is.
@@ -14,6 +15,8 @@ export type Analysis = Probe & {
   silences: Silence[];
   loudness: Loudness[];
   frames: Frame[];
+  /** what is said, when speech recognition was asked for and the file has sound */
+  speech?: Transcript;
 };
 
 const SCENE_THRESHOLD = 0.3;
@@ -88,7 +91,12 @@ export function summarizeLoudness(l: Loudness[], bucket: number): { t: number; d
  * Looks at the whole file with ffmpeg. Scene changes and loudness are separate passes; a failure in one (for example a
  * file with no audio) just leaves that part empty. Frames are written to `dir` as f0.jpg, f1.jpg, ...
  */
-export async function analyzeVideo(input: string, dir: string, onStage?: (stage: string) => void): Promise<Analysis> {
+export async function analyzeVideo(
+  input: string,
+  dir: string,
+  onStage?: (stage: string) => void,
+  opts: { maxFrames?: number } = {},
+): Promise<Analysis> {
   await fs.mkdir(dir, { recursive: true });
   const info = await probe(input, dir);
   const long = Math.max(10 * 60_000, info.duration * 1500);
@@ -126,7 +134,7 @@ export async function analyzeVideo(input: string, dir: string, onStage?: (stage:
 
   onStage?.("대표 장면 뽑는 중");
   const frames: Frame[] = [];
-  for (const [i, t] of pickFrameTimes(info.duration, scenes).entries()) {
+  for (const [i, t] of pickFrameTimes(info.duration, scenes, opts.maxFrames).entries()) {
     const file = `f${i}.jpg`;
     const { code } = await run(
       ["-y", "-hide_banner", "-loglevel", "error", "-ss", t.toFixed(2), "-i", input, "-frames:v", "1", "-vf", "scale='min(640,iw)':-2", "-q:v", "5", file],

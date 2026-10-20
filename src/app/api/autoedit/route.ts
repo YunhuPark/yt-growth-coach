@@ -9,6 +9,7 @@ const Options = z.object({
   layout: z.enum(["short", "long"]).default("short"),
   topic: z.string().max(300).default(""),
   targetSec: z.number().min(5).max(14400),
+  speech: z.boolean().default(false),
   sourcePath: z.string().max(500).optional(),
   rights: Rights,
 });
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { sourcePath, layout, topic, targetSec } = parsed.data;
+    const { sourcePath, layout, topic, targetSec, speech } = parsed.data;
     const id = randomBytes(8).toString("hex");
     const dir = path.join(autoEditDir(), id);
 
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    startAutoEdit({ id, dir, input: src.input, ctx: { layout, topic, targetSec }, deleteInput: src.deleteInput });
+    startAutoEdit({ id, dir, input: src.input, ctx: { layout, topic, targetSec }, deleteInput: src.deleteInput, speech: speech ? {} : undefined });
     return Response.json({ id }, { status: 202 });
   } catch (e) {
     return errorResponse(e);

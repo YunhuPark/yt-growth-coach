@@ -73,6 +73,7 @@ const raw = (over: Partial<RawPlan> = {}): RawPlan => ({
   titles: ["a", "b", "c"],
   description: "설명",
   hashtags: ["쇼츠"],
+  chapters: [],
   ...over,
 });
 

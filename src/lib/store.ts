@@ -158,3 +158,21 @@ export const savePrep = (r: PrepRecord) => writeJson("prep.json", r);
 /** When the weekly job last tried to run, successful or not, so a failing run isn't retried every few minutes. */
 export const loadPrepAttempt = () => readJson<{ at: string } | null>("prep-attempt.json", null);
 export const savePrepAttempt = (a: { at: string }) => writeJson("prep-attempt.json", a);
+
+/** A Short rendered from an AI candidate, kept so it can be linked to the video it became. */
+export type ClipRecord = {
+  id: string; // the render id
+  at: string;
+  sourceName: string;
+  aiScore: number; // 1-10
+  reason: string;
+  title: string;
+  hook: string;
+  start: number;
+  end: number;
+  lengthFit?: "within" | "shorter" | "longer" | null;
+  videoId?: string;
+  linkedAt?: string;
+};
+export const loadClips = () => readJson<ClipRecord[]>("clips.json", []);
+export const saveClips = (c: ClipRecord[]) => writeJson("clips.json", c);

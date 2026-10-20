@@ -5,6 +5,7 @@ import type { LongPack, Pack } from "@/lib/package";
 import type { Idea } from "@/lib/recommend";
 import type { SourceResult } from "@/lib/sources";
 import AutoEdit from "./AutoEdit";
+import Highlights from "./Highlights";
 import { api, BASIS, fmt, isLongPack, type Basis } from "./shared";
 
 type SavedPack = { at: string; idea: Idea; pack: Pack | LongPack };
@@ -68,6 +69,7 @@ export default function Studio() {
       {saved && (
         <>
           <Sources idea={saved.idea} />
+          <Highlights key={`hl-${key}`} idea={saved.idea} />
           <AutoEdit key={`auto-${key}`} idea={saved.idea} pack={saved.pack} />
           <Edit key={key} pack={saved.pack} />
         </>
