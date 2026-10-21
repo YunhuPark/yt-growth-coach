@@ -104,11 +104,11 @@ export function speechRegions(silences: Silence[], duration: number, opts: { joi
 }
 
 /** 16 kHz mono float samples, the format Whisper expects, read through ffmpeg. */
-export async function extractAudio(input: string, dir: string, maxSec = MAX_TRANSCRIBE_SEC): Promise<Float32Array> {
+export async function extractAudio(input: string, dir: string, maxSec = MAX_TRANSCRIBE_SEC, startSec = 0): Promise<Float32Array> {
   await fs.mkdir(dir, { recursive: true });
   const file = "speech.f32";
   const { code, stderr } = await run(
-    ["-y", "-hide_banner", "-loglevel", "error", "-i", input, "-vn", "-t", String(maxSec), "-ac", "1", "-ar", "16000", "-f", "f32le", file],
+    ["-y", "-hide_banner", "-loglevel", "error", ...(startSec > 0 ? ["-ss", String(startSec)] : []), "-i", input, "-vn", "-t", String(maxSec), "-ac", "1", "-ar", "16000", "-f", "f32le", file],
     dir,
     10 * 60_000,
   );
@@ -153,11 +153,19 @@ export function whisperTranscriber(onProgress?: (p: Progress) => void): Transcri
 export async function transcribeVideo(
   input: string,
   dir: string,
-  opts: { duration: number; silences: Silence[]; language?: string; transcriber?: Transcriber; onStage?: (s: string) => void },
+  opts: {
+    duration: number;
+    silences: Silence[];
+    language?: string;
+    transcriber?: Transcriber;
+    onStage?: (s: string) => void;
+    /** transcribe only from here (seconds into the file); the returned times are then relative to this point */
+    startSec?: number;
+  },
 ): Promise<Transcript> {
   const seconds = Math.min(opts.duration, MAX_TRANSCRIBE_SEC);
   opts.onStage?.("음성 추출 중");
-  const samples = await extractAudio(input, dir, seconds);
+  const samples = await extractAudio(input, dir, seconds, opts.startSec ?? 0);
 
   let lastShown = -1;
   const transcriber =

@@ -2,10 +2,12 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { analyzeVideo, type Analysis } from "./analyzeVideo";
 import { planEdit, type EditPlan, type PlanContext } from "./autoEdit";
-import { getAnalysis } from "./analysis";
-import { buildClipProfile, type ClipProfile } from "./clipProfile";
+import { loadClipProfile } from "./channelProfile";
+import type { ClipProfile } from "./clipProfile";
 import { findHighlights, type Highlight } from "./highlights";
 import { transcribeVideo, type Transcriber } from "./transcribe";
+import { addMeta, timed, tracked } from "./usage";
+import { fetchSignals, momentsHint } from "./urlPlan";
 
 export type AutoJob = {
   status: "running" | "done" | "error";
@@ -13,6 +15,8 @@ export type AutoJob = {
   error?: string;
   plan?: EditPlan;
   highlights?: Highlight[];
+  /** what happened to the original-video address, when one was given: used, or why it was not */
+  hintNote?: string;
   /** why a requested long-form summary was not made (for example the video is too short) */
   longformNote?: string;
   /** the channel's length range for Shorts, when there is enough history; shown beside the candidates */
@@ -37,23 +41,29 @@ type Common = {
 };
 
 /** Shared by both jobs: look at the file, optionally transcribe it, run `finish`, then clean up. */
-function start(args: Common, maxFrames: number | undefined, finish: (a: Analysis, job: AutoJob) => Promise<void>) {
+function start(args: Common, kind: string, maxFrames: number | undefined, finish: (a: Analysis, job: AutoJob) => Promise<void>) {
   const job: AutoJob = { status: "running", stage: "시작하는 중" };
   jobs.set(args.id, job);
   void (async () => {
     try {
-      const analysis = await analyzeVideo(args.input, args.dir, (s) => (job.stage = s), { maxFrames });
-      if (args.speech && analysis.hasAudio) {
-        analysis.speech = await transcribeVideo(args.input, args.dir, {
-          duration: analysis.duration,
-          silences: analysis.silences,
-          language: args.speech.language,
-          transcriber: args.speech.transcriber,
-          onStage: (s) => (job.stage = s),
-        });
-      }
-      job.duration = analysis.duration;
-      await finish(analysis, job);
+      // One measured piece of work: AI calls and stage times made below are added to its record.
+      await tracked(kind, async () => {
+        const analysis = await timed("ffmpeg 분석", () => analyzeVideo(args.input, args.dir, (s) => (job.stage = s), { maxFrames }));
+        addMeta({ inputSec: Math.round(analysis.duration), frames: analysis.frames.length, hasAudio: analysis.hasAudio, speech: !!args.speech });
+        if (args.speech && analysis.hasAudio) {
+          analysis.speech = await timed("음성 인식", () =>
+            transcribeVideo(args.input, args.dir, {
+              duration: analysis.duration,
+              silences: analysis.silences,
+              language: args.speech?.language,
+              transcriber: args.speech?.transcriber,
+              onStage: (s) => (job.stage = s),
+            }),
+          );
+        }
+        job.duration = analysis.duration;
+        await finish(analysis, job);
+      });
       job.status = "done";
       job.stage = "완료";
     } catch (e) {
@@ -68,7 +78,7 @@ function start(args: Common, maxFrames: number | undefined, finish: (a: Analysis
 
 /** Analyse the video, ask the model for an edit plan, then clean up. Rendering is a separate, explicit step. */
 export function startAutoEdit(args: Common & { ctx: PlanContext }) {
-  start(args, undefined, async (analysis, job) => {
+  start(args, "autoedit", undefined, async (analysis, job) => {
     job.stage = "AI가 편집 계획을 세우는 중";
     job.plan = await planEdit(analysis, args.ctx);
   });
@@ -76,16 +86,37 @@ export function startAutoEdit(args: Common & { ctx: PlanContext }) {
 
 /** Analyse a long video and ask the model which stretches would work as Shorts. */
 export function startHighlights(
-  args: Common & { topic: string; count: number; longform?: boolean; loadProfile?: () => Promise<ClipProfile | null> },
+  args: Common & {
+    topic: string;
+    count: number;
+    longform?: boolean;
+    /** address of the original YouTube video, so the moments its viewers point at can guide the choice */
+    sourceUrl?: string;
+    loadProfile?: () => Promise<ClipProfile | null>;
+  },
 ) {
   // A long video needs more sample frames than a short clip to be covered at all.
-  start(args, 24, async (analysis, job) => {
+  start(args, "highlights", 24, async (analysis, job) => {
     job.stage = "내 채널에서 잘된 쇼츠 확인하는 중";
     // Not signed in, no quota, or too few Shorts: carry on without channel history rather than fail the whole search.
-    const profile = await (args.loadProfile ?? defaultProfile)().catch(() => null);
+    const profile = await (args.loadProfile ?? loadClipProfile)().catch(() => null);
     job.lengthRange = profile?.lengthRange ?? null;
+
+    // The original video's address: what its viewers pointed at in the comments. A failure only costs the hint.
+    let moments: Awaited<ReturnType<typeof momentsHint>>["moments"] = [];
+    if (args.sourceUrl?.trim()) {
+      job.stage = "원본 영상의 시청자 반응 읽는 중";
+      try {
+        const hint = momentsHint(await fetchSignals(args.sourceUrl), analysis.duration);
+        moments = hint.moments;
+        job.hintNote = hint.note ?? `원본 영상에서 시청자가 짚은 순간 ${moments.length}곳을 후보 선정에 반영했습니다.`;
+      } catch (e) {
+        job.hintNote = `원본 영상 주소를 읽지 못해 파일만 분석했습니다: ${e instanceof Error ? e.message : "알 수 없는 오류"}`;
+      }
+    }
+
     job.stage = "AI가 쇼츠 구간을 고르는 중";
-    job.highlights = await findHighlights(analysis, { topic: args.topic, count: args.count, profile });
+    job.highlights = await findHighlights(analysis, { topic: args.topic, count: args.count, profile, moments });
 
     // Optionally also a long-form summary of the same video, from the same analysis: cuts, chapters, title and description.
     if (args.longform) {
@@ -104,7 +135,3 @@ export const MIN_LONGFORM_SOURCE_SEC = 120;
 /** About half of the source, but at least a minute and at most 15 minutes: a summary, not a re-upload. */
 export const longformTarget = (durationSec: number) => Math.min(900, Math.max(60, Math.round(durationSec * 0.5)));
 
-const defaultProfile = async () => {
-  const a = await getAnalysis();
-  return buildClipProfile(a.videos, a.patterns);
-};

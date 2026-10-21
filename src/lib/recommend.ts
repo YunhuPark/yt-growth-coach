@@ -1,8 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { PatternRow, Scored } from "./metrics";
 import type { TrendData } from "./trends";
+import { trackedClient } from "./usage";
 
 const Idea = z.object({
   format: z.enum(["long", "short", "reels"]),
@@ -101,7 +101,7 @@ export async function recommend(input: {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY가 .env.local에 설정되지 않았습니다.");
   }
-  const client = new Anthropic();
+  const client = trackedClient("recommend");
   const rated = input.scored.filter((v) => v.score !== null).sort((a, b) => b.score! - a.score!);
 
   const payload = {

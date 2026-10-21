@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { normalizeStyle, styledText, type CaptionStyle } from "./captionStyle";
 
 export const MAX_SHORT_SEC = 180;
 export const MAX_LONG_SEC = 4 * 3600;
@@ -18,6 +19,8 @@ export type RenderOpts = {
   hook?: { text: string; seconds: number };
   captions: { start: number; end: number; text: string }[];
   ending?: { text: string; seconds: number };
+  /** how the hook and caption text look; the default is the plain boxed style */
+  style?: CaptionStyle;
 };
 
 type TextStyle = { size: number; border?: number; box?: number; y: string; wrap: number; spacing: number };
@@ -46,7 +49,7 @@ export const LAYOUTS: Record<
   },
 };
 
-const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
+export const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 
 const FONT_CANDIDATES = [
   "C:/Windows/Fonts/malgunbd.ttf",
@@ -58,7 +61,7 @@ const FONT_CANDIDATES = [
   "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
 ];
 
-async function findFont() {
+export async function findFont() {
   for (const f of FONT_CANDIDATES) {
     try {
       await fs.access(f);
@@ -225,25 +228,22 @@ export async function renderVideo(
   };
   const text = (file: string, o: string) => `drawtext=fontfile=font.ttf:textfile=${file}:reload=0:${o}`;
 
+  const style = normalizeStyle(opts.style);
   const chain: string[] = [];
   if (opts.hook?.text.trim()) {
-    const s = L.hook;
-    const f = await textFile(opts.hook.text, s.wrap);
+    const st = styledText("hook", L.hook, style, layout);
+    const f = await textFile(opts.hook.text, st.wrap);
     const until = Math.min(opts.hook.seconds, outDur);
-    chain.push(
-      text(f, `fontsize=${s.size}:fontcolor=white:borderw=${s.border}:bordercolor=black@0.9:x=(w-text_w)/2:y=${s.y}:line_spacing=${s.spacing}:enable='between(t,0,${sec(until)})'`),
-    );
+    chain.push(text(f, `${st.options}:enable='between(t,0,${sec(until)})'`));
   }
   // Captions stop where the ending card begins so they don't show through it.
   const captionsEnd = opts.ending?.text.trim() ? Math.max(0, outDur - opts.ending.seconds) : outDur;
+  const captionStyle = styledText("caption", L.caption, style, layout);
   for (const c of opts.captions) {
-    const s = L.caption;
     const capEnd = Math.min(c.end, captionsEnd);
     if (!c.text.trim() || capEnd <= c.start) continue;
-    const f = await textFile(c.text, s.wrap);
-    chain.push(
-      text(f, `fontsize=${s.size}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=${s.box}:x=(w-text_w)/2:y=${s.y}:line_spacing=${s.spacing}:enable='between(t,${sec(c.start)},${sec(capEnd)})'`),
-    );
+    const f = await textFile(c.text, captionStyle.wrap);
+    chain.push(text(f, `${captionStyle.options}:enable='between(t,${sec(c.start)},${sec(capEnd)})'`));
   }
   if (opts.ending?.text.trim()) {
     const s = L.ending;

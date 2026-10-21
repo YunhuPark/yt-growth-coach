@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
+import { normalizeStyle, type CaptionStyle } from "@/lib/captionStyle";
 import { errorResponse } from "@/lib/http";
 import { rendersDir, startRenderJob } from "@/lib/renderJobs";
 import { acceptSource, Rights, SourceError } from "@/lib/source";
@@ -15,6 +16,11 @@ const Options = z.object({
   hook: z.object({ text: z.string().max(120), seconds: z.number().min(0.5).max(10) }).optional(),
   captions: z.array(z.object({ start: z.number().min(0), end: z.number().min(0), text: z.string().max(120) })).max(120),
   ending: z.object({ text: z.string().max(60), seconds: z.number().min(0.5).max(20) }).optional(),
+  // How the hook and caption text look. Unknown values are treated as the default, never as an error.
+  style: z
+    .object({ preset: z.string(), position: z.string(), scale: z.number() })
+    .optional()
+    .transform((s) => (s ? normalizeStyle(s as Partial<CaptionStyle>) : undefined)),
   // For files too large to upload: an absolute path on this computer. Only video files are read.
   sourcePath: z.string().max(500).optional(),
   rights: Rights,

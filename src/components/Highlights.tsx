@@ -2,11 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Highlight } from "@/lib/highlights";
-import type { Idea } from "@/lib/recommend";
-import { captionHasBadTimes, editedCaptions, toCaps, type Cap } from "@/lib/captionEdit";
+import { editedCaptions, toCaps, type Cap } from "@/lib/captionEdit";
 import type { EditPlan } from "@/lib/autoEdit";
+import { planCues } from "@/lib/exporters";
+import { useCaptionStyle } from "./captionStyleContext";
+import CaptionEditor from "./CaptionEditor";
+import ExportMenu from "./ExportMenu";
 import PlanPanel from "./PlanPanel";
-import { api, BASIS, type Basis } from "./shared";
+import { api, type Basis } from "./shared";
+import { sourceName, sourceReady, type SourceState } from "./source";
 
 type AutoStatus = {
   status: "running" | "done" | "error";
@@ -14,6 +18,7 @@ type AutoStatus = {
   error?: string;
   highlights?: Highlight[];
   plan?: EditPlan;
+  hintNote?: string;
   longformNote?: string;
   lengthRange?: { min: number; max: number } | null;
   duration?: number;
@@ -32,15 +37,15 @@ const clock = (s: number) => {
 };
 
 /** D. Pick the stretches of a long video that would work as Shorts, then turn the chosen ones into Shorts. */
-export default function Highlights({ idea }: { idea: Idea }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [sourcePath, setSourcePath] = useState("");
-  const [topic, setTopic] = useState(idea.title);
+export default function Highlights({ topic: initialTopic, source }: { topic: string; source: SourceState }) {
+  const { file, sourcePath, basis } = source;
+  const { style } = useCaptionStyle();
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [hintNote, setHintNote] = useState<string | null>(null);
+  const [topic, setTopic] = useState(initialTopic);
   const [count, setCount] = useState(5);
   const [speech, setSpeech] = useState(true);
   const [longform, setLongform] = useState(false);
-  const [basis, setBasis] = useState<Basis | "">("");
-  const [confirmed, setConfirmed] = useState(false);
 
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +58,7 @@ export default function Highlights({ idea }: { idea: Idea }) {
   const [made, setMade] = useState<Record<number, Made>>({});
 
   const finding = stage !== null;
-  const hasSource = !!file || !!sourcePath.trim();
-  const ready = hasSource && confirmed && !!basis && !finding;
+  const ready = sourceReady(source) && !finding;
   const busyMaking = Object.values(made).some((m) => m.state === "running");
 
   const body = (options: object) => {
@@ -70,10 +74,11 @@ export default function Highlights({ idea }: { idea: Idea }) {
     setFound(null);
     setLongPlan(null);
     setLongNote(null);
+    setHintNote(null);
     setMade({});
     setStage("올리는 중");
     try {
-      const res = await fetch("/api/highlights", { method: "POST", body: body({ topic, count, speech, longform }) });
+      const res = await fetch("/api/highlights", { method: "POST", body: body({ topic, count, speech, longform, sourceUrl: sourceUrl.trim() || undefined }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `분석 실패 (${res.status})`);
       for (;;) {
@@ -86,6 +91,7 @@ export default function Highlights({ idea }: { idea: Idea }) {
           setRange(st.lengthRange ?? null);
           setLongPlan(st.plan ?? null);
           setLongNote(st.longformNote ?? null);
+          setHintNote(st.hintNote ?? null);
           setHooks(st.highlights.map((h) => h.hook));
           setCaps(st.highlights.map((h) => toCaps(h.captions)));
           break;
@@ -115,6 +121,7 @@ export default function Highlights({ idea }: { idea: Idea }) {
           segments: [{ start: h.start, end: h.end }],
           hook: hooks[i]?.trim() ? { text: hooks[i], seconds: 2.5 } : undefined,
           captions: editedCaptions(caps[i] ?? []),
+          style,
         }),
       });
       const json = await res.json();
@@ -160,19 +167,16 @@ export default function Highlights({ idea }: { idea: Idea }) {
   return (
     <section className="card flex flex-col gap-4">
       <div>
-        <h2 className="font-semibold">D. 긴 영상에서 쇼츠 뽑기</h2>
+        <h2 className="font-semibold">긴 영상에서 쇼츠 뽑기</h2>
         <p className="text-xs text-muted">
           길이가 긴 영상 하나를 넣으면 AI가 쇼츠로 잘라 올리기 좋은 구간을 점수와 이유까지 붙여 후보로 뽑습니다. 마음에 드는 후보를 고르면 훅 자막과(음성 인식을
-          켰다면) 대사 자막까지 붙여 쇼츠로 만들어 줍니다. 긴 영상은 파일 경로로 넣는 것이 편합니다(업로드는 600MB까지).
+          켰다면) 대사 자막까지 붙여 쇼츠로 만들어 줍니다. 영상은 위 “1. 편집할 영상”에서 고른 것을 씁니다.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field">영상 파일 올리기 (mp4, mov, webm, mkv · 최대 600MB)
-          <input className="input" type="file" accept="video/*,.mkv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <label className="field">또는 이 컴퓨터의 파일 경로 (긴 영상 추천)
-          <input className="input" placeholder="D:\영상\긴영상.mp4" value={sourcePath} disabled={!!file} onChange={(e) => setSourcePath(e.target.value)} />
+        <label className="field">원본 영상 주소 (선택 · 시청자가 댓글로 짚은 인기 구간을 후보에 반영)
+          <input className="input" placeholder="https://www.youtube.com/watch?v=…" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} />
         </label>
         <label className="field">주제 / 채널 성격 (AI에게 전달)
           <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} />
@@ -202,26 +206,17 @@ export default function Highlights({ idea }: { idea: Idea }) {
         </span>
       </label>
 
-      <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3">
-        <legend className="px-1 text-xs font-semibold text-muted">영상 사용 권한 확인 (필수)</legend>
-        <select className="input" value={basis} onChange={(e) => setBasis(e.target.value as Basis)}>
-          <option value="">이 영상의 권리 관계를 선택하세요</option>
-          {BASIS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-        </select>
-        <label className="flex items-start gap-2 text-sm">
-          <input className="mt-1" type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-          <span>
-            이 영상은 제가 직접 촬영했거나, 저작권자의 사용 허락(라이선스·협의)을 받은 영상입니다. 방송·타사 영상을 권리 확인 없이 쓰는 경우의 책임은 제게
-            있음을 이해합니다.
-          </span>
-        </label>
-      </fieldset>
+      <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
+        {sourceReady(source) ? `영상: ${sourceName(source)}` : "위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요."}
+      </p>
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
       <button className="btn-primary w-fit" onClick={find} disabled={!ready || busyMaking}>
         {finding ? `${stage}…` : found ? "다시 찾기" : "쇼츠 구간 찾기"}
       </button>
+
+      {hintNote && found && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">{hintNote}</p>}
 
       {found && found.length === 0 && <p className="text-sm text-muted">쇼츠로 쓸 만한 구간을 찾지 못했습니다. 영상이 너무 짧거나 변화가 거의 없을 수 있습니다.</p>}
 
@@ -277,6 +272,16 @@ export default function Highlights({ idea }: { idea: Idea }) {
                       onReset={() => setCaps(caps.map((x, j) => (j === i ? toCaps(h.captions) : x)))}
                     />
                   </details>
+                  <ExportMenu
+                    baseName={h.title || `쇼츠 후보 ${i + 1}`}
+                    clipName={sourceName(source)}
+                    cues={planCues({
+                      hook: hooks[i]?.trim() ? { text: hooks[i], seconds: 2.5 } : null,
+                      captions: editedCaptions(caps[i] ?? []),
+                      outputSec: h.end - h.start,
+                    })}
+                    cuts={[{ start: h.start, end: h.end }]}
+                  />
                   <div className="flex flex-col gap-2">
                     <button className="btn-primary w-fit" onClick={() => make(i)} disabled={m?.state === "running" || busyMaking}>
                       {m?.state === "running" ? `만드는 중… ${Math.round(m.progress * 100)}%` : m?.state === "done" ? "다시 만들기" : "이 구간으로 쇼츠 만들기"}
@@ -306,34 +311,10 @@ export default function Highlights({ idea }: { idea: Idea }) {
       {longPlan && (
         <div className="flex flex-col gap-2">
           <h3 className="font-semibold">롱폼 요약 구성 (1920×1080 가로)</h3>
-          <PlanPanel plan={longPlan} layout="long" body={body} disabled={finding} />
+          <PlanPanel plan={longPlan} layout="long" body={body} disabled={finding} clipName={sourceName(source)} />
         </div>
       )}
     </section>
-  );
-}
-
-function CaptionEditor({ caps, max, onChange, onReset }: { caps: Cap[]; max: number; onChange: (c: Cap[]) => void; onReset: () => void }) {
-  const set = (i: number, patch: Partial<Cap>) => onChange(caps.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-  const bad = captionHasBadTimes;
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      <p className="text-xs text-muted">시간은 이 쇼츠가 시작하는 지점을 0초로 한 초 단위입니다(전체 {max}초). 글자가 비어 있거나 시간이 맞지 않는 줄은 영상에 넣지 않습니다.</p>
-      <ul className="space-y-2">
-        {caps.map((c, i) => (
-          <li key={i} className="grid grid-cols-[4rem_4rem_1fr_auto] items-center gap-2">
-            <input className={`input ${bad(c) ? "border-bad" : ""}`} inputMode="decimal" placeholder="시작" value={c.start} onChange={(e) => set(i, { start: e.target.value })} />
-            <input className={`input ${bad(c) ? "border-bad" : ""}`} inputMode="decimal" placeholder="끝" value={c.end} onChange={(e) => set(i, { end: e.target.value })} />
-            <input className="input" placeholder="자막" value={c.text} onChange={(e) => set(i, { text: e.target.value })} />
-            <button className="text-xs text-muted hover:text-bad" onClick={() => onChange(caps.filter((_, j) => j !== i))}>삭제</button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2">
-        <button className="btn" onClick={() => onChange([...caps, { start: caps.length ? caps[caps.length - 1].end : "0", end: "", text: "" }])}>+ 자막 추가</button>
-        <button className="btn" onClick={onReset}>처음 상태로</button>
-      </div>
-    </div>
   );
 }
 

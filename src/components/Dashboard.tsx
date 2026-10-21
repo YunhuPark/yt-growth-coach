@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { PatternRow, Scored, ChannelSummary } from "@/lib/metrics";
 import type { Candidate, Excluded, Profile } from "@/lib/discover";
@@ -100,6 +101,7 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Link className="btn" href="/edit">영상 편집 도우미</Link>
             <button className="btn" onClick={() => reload(true)} disabled={loading}>
               {loading ? "갱신 중…" : "데이터 새로고침"}
             </button>
@@ -175,7 +177,12 @@ function Alert({ children, tone = "error" }: { children: React.ReactNode; tone?:
 function Connect({ configured, error }: { configured: boolean; error?: string | null }) {
   return (
     <section className="card flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">내 유튜브 채널 연결</h2>
+      <div className="rounded-md border border-line bg-card p-3">
+        <p className="text-sm font-medium">영상 편집만 하려면 로그인이 필요 없습니다.</p>
+        <p className="mt-0.5 text-xs text-muted">컷·자막·제목·쇼츠 구간 제안과 영상 만들기는 Google 계정 없이 쓸 수 있습니다.</p>
+        <Link href="/edit" className="btn-primary mt-2 inline-block w-fit">영상 편집 도우미 열기</Link>
+      </div>
+      <h2 className="text-lg font-semibold">내 유튜브 채널 연결 (채널 분석 · 추천 · 성과 추적용)</h2>
       {error && <Alert>{error}</Alert>}
       {configured ? (
         <>

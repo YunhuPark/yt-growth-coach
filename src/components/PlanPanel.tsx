@@ -3,6 +3,9 @@
 import { useState } from "react";
 import type { EditPlan } from "@/lib/autoEdit";
 import { formatClock, withChapterCards } from "@/lib/chapters";
+import { planCues } from "@/lib/exporters";
+import { useCaptionStyle } from "./captionStyleContext";
+import ExportMenu from "./ExportMenu";
 import { api } from "./shared";
 
 type RenderStatus = {
@@ -25,12 +28,16 @@ export default function PlanPanel({
   layout,
   body,
   disabled,
+  clipName = "",
 }: {
   plan: EditPlan;
   layout: "short" | "long";
   body: (options: object) => FormData;
   disabled?: boolean;
+  /** the source video's name, written into the exported cut list */
+  clipName?: string;
 }) {
+  const { style } = useCaptionStyle();
   const [rendering, setRendering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +61,7 @@ export default function PlanPanel({
           hook: plan.hook ?? undefined,
           captions,
           ending: plan.ending ?? undefined,
+          style,
         }),
       });
       const json = await res.json();
@@ -137,6 +145,13 @@ export default function PlanPanel({
           설명 복사
         </button>
       </div>
+
+      <ExportMenu
+        baseName={plan.titles[0] ?? "편집 계획"}
+        clipName={clipName}
+        cues={planCues({ hook: plan.hook, captions, ending: plan.ending, outputSec: plan.outputSec })}
+        cuts={plan.segments}
+      />
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 

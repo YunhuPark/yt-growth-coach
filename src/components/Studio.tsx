@@ -5,7 +5,12 @@ import type { LongPack, Pack } from "@/lib/package";
 import type { Idea } from "@/lib/recommend";
 import type { SourceResult } from "@/lib/sources";
 import AutoEdit from "./AutoEdit";
+import { CaptionStyleProvider, useCaptionStyle } from "./captionStyleContext";
+import SourcePanel from "./SourcePanel";
+import StylePicker from "./StylePicker";
+import { EMPTY_SOURCE, type SourceState } from "./source";
 import Highlights from "./Highlights";
+import UrlPlan from "./UrlPlan";
 import { api, BASIS, fmt, isLongPack, type Basis } from "./shared";
 
 type SavedPack = { at: string; idea: Idea; pack: Pack | LongPack };
@@ -35,6 +40,7 @@ const PLACEHOLDER = /\[[^\]]*\]/;
 export default function Studio() {
   const [packs, setPacks] = useState<Record<string, SavedPack> | null>(null);
   const [key, setKey] = useState("");
+  const [source, setSource] = useState<SourceState>(EMPTY_SOURCE);
 
   useEffect(() => {
     api<Record<string, SavedPack>>("/api/package")
@@ -58,6 +64,7 @@ export default function Studio() {
   const saved = packs[key];
 
   return (
+    <CaptionStyleProvider>
     <div className="flex flex-col gap-5">
       <section className="card">
         <label className="field">제작할 아이디어
@@ -69,12 +76,16 @@ export default function Studio() {
       {saved && (
         <>
           <Sources idea={saved.idea} />
-          <Highlights key={`hl-${key}`} idea={saved.idea} />
-          <AutoEdit key={`auto-${key}`} idea={saved.idea} pack={saved.pack} />
+          <SourcePanel source={source} onChange={setSource} />
+          <StylePicker />
+          <UrlPlan key={`url-${key}`} topic={saved.idea.title} source={source} />
+          <Highlights key={`hl-${key}`} topic={saved.idea.title} source={source} />
+          <AutoEdit key={`auto-${key}`} topic={saved.idea.title} layout={isLongPack(saved.pack) ? "long" : "short"} source={source} />
           <Edit key={key} pack={saved.pack} />
         </>
       )}
     </div>
+    </CaptionStyleProvider>
   );
 }
 
@@ -235,6 +246,7 @@ function initialOverlay(pack: Pack | LongPack) {
 }
 
 function Edit({ pack }: { pack: Pack | LongPack }) {
+  const { style } = useCaptionStyle();
   const init = initialOverlay(pack);
   const long = init.layout === "long";
   const [file, setFile] = useState<File | null>(null);
@@ -266,6 +278,7 @@ function Edit({ pack }: { pack: Pack | LongPack }) {
     setProgress(0);
     const num = (s: string) => (s.trim() === "" ? undefined : Number(s));
     const options = {
+      style,
       layout: init.layout,
       fit,
       trimStart: num(trimStart),

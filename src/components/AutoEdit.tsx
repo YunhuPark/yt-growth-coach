@@ -2,23 +2,19 @@
 
 import { useState } from "react";
 import type { EditPlan } from "@/lib/autoEdit";
-import type { LongPack, Pack } from "@/lib/package";
-import type { Idea } from "@/lib/recommend";
 import PlanPanel from "./PlanPanel";
-import { api, BASIS, isLongPack, type Basis } from "./shared";
+import { api } from "./shared";
+import { sourceName, sourceReady, type SourceState } from "./source";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; error?: string; plan?: EditPlan; duration?: number };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** C. The AI looks at the footage, proposes cuts, captions and titles; the creator reviews, then renders. */
-export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | LongPack }) {
-  const long = isLongPack(pack);
-  const [file, setFile] = useState<File | null>(null);
-  const [sourcePath, setSourcePath] = useState("");
+export default function AutoEdit({ topic: initialTopic, layout, source }: { topic: string; layout: "short" | "long"; source: SourceState }) {
+  const long = layout === "long";
+  const { file, sourcePath, basis } = source;
   const [targetSec, setTargetSec] = useState(long ? "480" : "40");
-  const [topic, setTopic] = useState(`${idea.title}`);
-  const [basis, setBasis] = useState<Basis | "">("");
-  const [confirmed, setConfirmed] = useState(false);
+  const [topic, setTopic] = useState(initialTopic);
   const [speech, setSpeech] = useState(false);
 
   const [stage, setStage] = useState<string | null>(null);
@@ -26,8 +22,7 @@ export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | Long
   const [plan, setPlan] = useState<EditPlan | null>(null);
 
   const analyzing = stage !== null;
-  const hasSource = !!file || !!sourcePath.trim();
-  const ready = hasSource && confirmed && !!basis && !analyzing;
+  const ready = sourceReady(source) && !analyzing;
 
   const body = (options: object) => {
     const fd = new FormData();
@@ -68,7 +63,7 @@ export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | Long
   return (
     <section className="card flex flex-col gap-4">
       <div>
-        <h2 className="font-semibold">C. AI 자동 편집 · 컷 · 자막 · 제목</h2>
+        <h2 className="font-semibold">AI 자동 편집 · 컷 · 자막 · 제목</h2>
         <p className="text-xs text-muted">
           영상 파일을 AI가 훑어보고(대표 장면, 장면 전환, 무음 구간, 소리 크기) 버릴 부분을 자르고, 훅·구간 자막과 제목 후보 3개를 제안합니다. 먼저 계획을
           보여 주고, 확인한 뒤에 영상을 만듭니다. 음성 인식을 켜지 않으면 <b>대사는 알아듣지 못하고</b> 자막은 보이는 장면 기준의 문구가 됩니다. 이미지 몇 장(음성
@@ -77,12 +72,6 @@ export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | Long
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field">영상 파일 올리기 (mp4, mov, webm, mkv · 최대 600MB)
-          <input className="input" type="file" accept="video/*,.mkv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <label className="field">또는 이 컴퓨터의 파일 경로 (큰 파일용)
-          <input className="input" placeholder="D:\영상\원본.mp4" value={sourcePath} disabled={!!file} onChange={(e) => setSourcePath(e.target.value)} />
-        </label>
         <label className="field">주제 / 만들려는 영상 (AI에게 전달)
           <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} />
         </label>
@@ -102,20 +91,9 @@ export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | Long
         </span>
       </label>
 
-      <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3">
-        <legend className="px-1 text-xs font-semibold text-muted">영상 사용 권한 확인 (필수)</legend>
-        <select className="input" value={basis} onChange={(e) => setBasis(e.target.value as Basis)}>
-          <option value="">이 영상의 권리 관계를 선택하세요</option>
-          {BASIS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-        </select>
-        <label className="flex items-start gap-2 text-sm">
-          <input className="mt-1" type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-          <span>
-            이 영상은 제가 직접 촬영했거나, 저작권자의 사용 허락(라이선스·협의)을 받은 영상입니다. 방송·타사 영상을 권리 확인 없이 쓰는 경우의 책임은 제게
-            있음을 이해합니다.
-          </span>
-        </label>
-      </fieldset>
+      <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
+        {sourceReady(source) ? `영상: ${sourceName(source)}` : "위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요."}
+      </p>
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
@@ -123,7 +101,7 @@ export default function AutoEdit({ idea, pack }: { idea: Idea; pack: Pack | Long
         {analyzing ? `${stage}…` : plan ? "계획 다시 만들기" : "AI 편집 계획 만들기"}
       </button>
 
-      {plan && <PlanPanel plan={plan} layout={long ? "long" : "short"} body={body} disabled={analyzing} />}
+      {plan && <PlanPanel plan={plan} layout={long ? "long" : "short"} body={body} disabled={analyzing} clipName={sourceName(source)} />}
     </section>
   );
 }

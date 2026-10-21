@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { topHashtags } from "./discover";
 import type { PatternRow, Scored } from "./metrics";
 import type { Idea } from "./recommend";
+import { trackedClient } from "./usage";
 
 export const Pack = z.object({
   titles: z
@@ -59,7 +59,7 @@ export async function makePackage(input: PackageInput): Promise<Pack> {
   const byViews = [...input.scored].sort((a, b) => b.views - a.views);
   const settled = input.scored.filter((v) => v.score !== null);
 
-  const client = new Anthropic();
+  const client = trackedClient("package-short");
   const res = await client.messages.parse({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     max_tokens: 8000,
@@ -149,7 +149,7 @@ export async function makeLongPackage(input: PackageInput): Promise<LongPack> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY가 .env.local에 설정되지 않았습니다.");
   const longs = input.scored.filter((v) => v.format === "long").sort((a, b) => b.views - a.views);
 
-  const client = new Anthropic();
+  const client = trackedClient("package-long");
   const res = await client.messages.parse({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     max_tokens: 10000,

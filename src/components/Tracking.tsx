@@ -5,6 +5,7 @@ import type { CollectEvent } from "@/lib/store";
 import type { BaselineSummary, Evaluated, LeverResult, Metric } from "@/lib/tracking";
 import { api, fmt } from "./shared";
 import ClipValidation from "./ClipValidation";
+import UsagePanel from "./UsagePanel";
 
 type Cand = { id: string; title: string; publishedAt: string; format: "short" | "long"; views: number };
 type Lever = { id: string; label: string; metric: Metric };
@@ -150,6 +151,8 @@ export default function Tracking({ onUnread }: { onUnread?: (n: number) => void 
       {data.learned.length > 0 && <Learned rows={data.learned} />}
 
       <ClipValidation />
+
+      <UsagePanel />
     </div>
   );
 }

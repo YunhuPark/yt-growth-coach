@@ -176,3 +176,27 @@ export type ClipRecord = {
 };
 export const loadClips = () => readJson<ClipRecord[]>("clips.json", []);
 export const saveClips = (c: ClipRecord[]) => writeJson("clips.json", c);
+
+/** One tracked piece of work (an analysis, a render, a recommendation...) with what it cost in AI tokens and time. */
+export type UsageCall = { label: string; model: string; inputTokens: number; outputTokens: number; ms: number };
+export type UsageRecord = {
+  id: string;
+  at: string;
+  /** what kind of work: highlights, autoedit, urlplan, render, recommend, package, sources, ... */
+  kind: string;
+  ok: boolean;
+  /** wall-clock time of the whole piece of work */
+  wallMs: number;
+  calls: UsageCall[];
+  /** time spent per stage, in ms: "ffmpeg 분석", "음성 인식", ... */
+  stages: Record<string, number>;
+  /** sizes that drive the cost: input video length, output length, picture count ... */
+  meta: Record<string, number | string | boolean>;
+};
+export const loadUsage = () => readJson<UsageRecord[]>("usage.json", []);
+export const saveUsage = (u: UsageRecord[]) => writeJson("usage.json", u.slice(-500));
+
+/** Prices as the person entered them (USD per million tokens); nothing is assumed, so cost stays unknown until set. */
+export type Pricing = { inputPerMTok?: number; outputPerMTok?: number; usdToKrw?: number };
+export const loadPricing = () => readJson<Pricing>("pricing.json", {});
+export const savePricing = (p: Pricing) => writeJson("pricing.json", p);

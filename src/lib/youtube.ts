@@ -1,5 +1,6 @@
 import { gget, GoogleApiError } from "./google";
 import { formatCheckNotes, refineFormats, SHORT_MAX_SEC } from "./shorts";
+import { safeSlice } from "./util";
 
 export { SHORT_MAX_SEC };
 
@@ -432,28 +433,66 @@ export function findTimestamps(text: string): number[] {
 }
 
 /** Most-liked comments that point at a moment ("12:34 ㅋㅋㅋ"). Comments may be disabled, then []. */
+type CommentThreads = {
+  items: { snippet: { topLevelComment: { snippet: { textDisplay: string; likeCount: number } } } }[];
+  nextPageToken?: string;
+};
+
+/** A comment that points at a moment ("1:23 this part!") as { sec, text, likes }, or null when it has no time in it. */
+function hotspotFrom(c: { textDisplay: string; likeCount: number }) {
+  const ts = findTimestamps(c.textDisplay);
+  if (!ts.length) return null;
+  const flat = c.textDisplay.replace(/\s+/g, " ").trim();
+  // The UI shows the time as a link already, so drop it from the start of the comment text.
+  const body = flat.replace(/^\(?\d{1,2}(?::\d{2}){1,2}\)?\s*[-–:~]*\s*/, "");
+  return { sec: ts[0], text: safeSlice(body || flat, 70), likes: c.likeCount };
+}
+
 export async function timestampComments(videoId: string) {
   try {
-    const r = await gget<{
-      items: { snippet: { topLevelComment: { snippet: { textDisplay: string; likeCount: number } } } }[];
-    }>(
+    const r = await gget<CommentThreads>(
       `${DATA}/commentThreads`,
       { part: "snippet", videoId, order: "relevance", maxResults: 50, textFormat: "plainText" },
       { allowApiKey: true, preferApiKey: true },
     );
-    const rows: { sec: number; text: string; likes: number }[] = [];
-    for (const it of r.items) {
-      const c = it.snippet.topLevelComment.snippet;
-      const ts = findTimestamps(c.textDisplay);
-      if (ts.length) {
-        const flat = c.textDisplay.replace(/\s+/g, " ").trim();
-        // The UI shows the time as a link already, so drop it from the start of the comment text.
-        const body = flat.replace(/^\(?\d{1,2}(?::\d{2}){1,2}\)?\s*[-–:~]*\s*/, "");
-        rows.push({ sec: ts[0], text: (body || flat).slice(0, 70), likes: c.likeCount });
-      }
-    }
+    const rows = r.items.map((it) => hotspotFrom(it.snippet.topLevelComment.snippet)).filter((x) => x !== null);
     return rows.sort((a, b) => b.likes - a.likes).slice(0, 5);
   } catch {
     return [];
   }
+}
+
+/**
+ * Every comment on the video (the most relevant `pages` x 100) that points at a moment. Unlike timestampComments this keeps
+ * them all, so moments that several viewers mention can be counted. `top` is the most-liked comments of any kind, to show
+ * what viewers react to. A failure part-way (comments off, quota) returns what was read so far; `ok` says whether the first
+ * page could be read at all.
+ */
+export async function allTimestampComments(videoId: string, pages = 3) {
+  const rows: { sec: number; text: string; likes: number }[] = [];
+  const everyComment: { text: string; likes: number }[] = [];
+  let ok = false;
+  let pageToken: string | undefined;
+  try {
+    for (let i = 0; i < pages; i++) {
+      const r = await gget<CommentThreads>(
+        `${DATA}/commentThreads`,
+        { part: "snippet", videoId, order: "relevance", maxResults: 100, textFormat: "plainText", ...(pageToken ? { pageToken } : {}) },
+        { allowApiKey: true, preferApiKey: true },
+      );
+      ok = true;
+      for (const it of r.items) {
+        const c = it.snippet.topLevelComment.snippet;
+        everyComment.push({ text: safeSlice(c.textDisplay.replace(/\s+/g, " ").trim(), 140), likes: c.likeCount });
+        const h = hotspotFrom(c);
+        if (h) rows.push(h);
+      }
+      pageToken = r.nextPageToken;
+      if (!pageToken) break;
+    }
+  } catch {
+    /* keep what was read */
+  }
+  const top = everyComment.filter((c) => c.text).sort((a, b) => b.likes - a.likes).slice(0, 15);
+  return { rows, ok, top };
 }

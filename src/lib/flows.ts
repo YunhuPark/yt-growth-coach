@@ -15,6 +15,7 @@ import {
   saveRecommendation,
 } from "./store";
 import { trackedForAI } from "./tracking";
+import { tracked } from "./usage";
 
 export type SavedRec = { at: string; goal: string; result: Recommendation };
 export type SavedPack = { at: string; idea: Idea; pack: AnyPack };
@@ -24,15 +25,15 @@ export async function generateRecommendation(opts: { goal?: string; useTrends?: 
   const trends = opts.useTrends === false ? null : await getTrends().catch(() => null);
   const goal = opts.goal?.slice(0, 200) ?? "";
   const entries = await loadTracking();
-  const tracked = entries.length ? await trackedForAI(entries, await loadBaseline()) : undefined;
-  const result = await recommend({
+  const trackedResults = entries.length ? await trackedForAI(entries, await loadBaseline()) : undefined;
+  const result = await tracked("recommend", () => recommend({
     channel: { title: a.channel.title, subscribers: a.channel.subscribers, videoCount: a.channel.videoCount },
     scored: a.videos,
     patterns: a.patterns,
     trends,
     goal,
-    tracked,
-  });
+    tracked: trackedResults,
+  }));
   const saved = { at: new Date().toISOString(), goal, result };
   await saveRecommendation(saved);
   return saved;
@@ -43,13 +44,15 @@ export async function generatePackage(idea: Idea): Promise<SavedPack> {
   const rec = (await loadRecommendation())?.result as { actions?: { kind: string; title: string; how: string }[] } | undefined;
   const actions = (rec?.actions ?? []).slice(0, 7).map((x) => `[${x.kind}] ${x.title} — ${x.how}`);
 
-  const pack = await makeAnyPackage({
-    idea,
-    channelTitle: a.channel.title,
-    scored: a.videos,
-    patterns: a.patterns,
-    actions,
-  });
+  const pack = await tracked("package", () =>
+    makeAnyPackage({
+      idea,
+      channelTitle: a.channel.title,
+      scored: a.videos,
+      patterns: a.patterns,
+      actions,
+    }),
+  );
   const all = await loadPackages();
   const saved = { at: new Date().toISOString(), idea, pack };
   all[idea.title] = saved;
@@ -67,7 +70,7 @@ export async function lookupSources(idea: Idea, refresh = false): Promise<Source
 
   const a = await getAnalysis();
   const { regionCode } = await loadSettings();
-  const value = await findSources(idea, topHashtags(a.videos).map((h) => h.tag), regionCode, a.channel.id);
+  const value = await tracked("sources", () => findSources(idea, topHashtags(a.videos).map((h) => h.tag), regionCode, a.channel.id));
   if (value.videos.length) sourceCache.set(idea.title, { at: Date.now(), value }); // don't pin an empty result
   return value;
 }

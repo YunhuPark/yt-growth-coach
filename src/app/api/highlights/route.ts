@@ -10,6 +10,7 @@ const Options = z.object({
   count: z.number().int().min(1).max(6).default(5),
   speech: z.boolean().default(false),
   longform: z.boolean().default(false),
+  sourceUrl: z.string().max(300).optional(),
   sourcePath: z.string().max(500).optional(),
   rights: Rights,
 });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { sourcePath, topic, count, speech, longform } = parsed.data;
+    const { sourcePath, topic, count, speech, longform, sourceUrl } = parsed.data;
     const id = randomBytes(8).toString("hex");
     const dir = path.join(autoEditDir(), id);
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    startHighlights({ id, dir, input: src.input, deleteInput: src.deleteInput, topic, count, longform, speech: speech ? {} : undefined });
+    startHighlights({ id, dir, input: src.input, deleteInput: src.deleteInput, topic, count, longform, sourceUrl, speech: speech ? {} : undefined });
     return Response.json({ id }, { status: 202 });
   } catch (e) {
     return errorResponse(e);

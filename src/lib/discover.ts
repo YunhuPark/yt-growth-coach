@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { median, type Scored } from "./metrics";
@@ -11,6 +10,7 @@ import {
   type ChannelInfo,
   type RawVideo,
 } from "./youtube";
+import { trackedClient } from "./usage";
 
 const MODEL = () => process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
@@ -43,7 +43,7 @@ export async function profileChannel(channel: ChannelInfo, videos: Scored[]): Pr
   const recent = [...videos].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   const pick = (v: Scored) => ({ title: v.title, views: v.views, sec: v.durationSec, date: v.publishedAt.slice(0, 10) });
 
-  const client = new Anthropic();
+  const client = trackedClient("channel-profile");
   const res = await client.messages.parse({
     model: MODEL(),
     max_tokens: 8000,
@@ -136,7 +136,7 @@ const Verdicts = z.object({
 });
 
 async function judge(profile: Profile, rows: { c: ChannelInfo; titles: string[]; s: ReturnType<typeof matchStats> }[]) {
-  const client = new Anthropic();
+  const client = trackedClient("channel-judge");
   const res = await client.messages.parse({
     model: MODEL(),
     max_tokens: 12000,

@@ -6,6 +6,7 @@ import { summarizeLoudness, type Analysis } from "./analyzeVideo";
 import { LAYOUTS, type Layout } from "./render";
 import { chapterLines, mapChapters, type Chapter } from "./chapters";
 import { snapToSpeech } from "./transcribe";
+import { trackedClient } from "./usage";
 
 // The model proposes keep-ranges, captions and titles in SOURCE time; sanitizePlan turns that into something safe to render:
 // ranges that exist, in order, within the layout's length limit, and captions moved onto the edited (output) timeline.
@@ -178,7 +179,7 @@ type Call = (system: string, content: Anthropic.ContentBlockParam[]) => Promise<
 
 const defaultCall: Call = async (system, content) => {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY가 .env.local에 설정되지 않았습니다.");
-  const client = new Anthropic();
+  const client = trackedClient("autoedit-plan");
   const res = await client.messages.parse({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     max_tokens: 8000,

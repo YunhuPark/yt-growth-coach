@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Idea } from "./recommend";
 import { mapPool } from "./util";
 import { findTimestamps, searchLong, timestampComments, videoInfo } from "./youtube";
+import { trackedClient } from "./usage";
 
 const Plan = z.object({
   queries: z
@@ -59,7 +59,7 @@ export function classifySource(title: string, channelTitle: string, coreTerms: s
 export async function findSources(idea: Idea, hashtags: string[], region: string, myChannelId: string): Promise<SourceResult> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY가 .env.local에 설정되지 않았습니다.");
 
-  const client = new Anthropic();
+  const client = trackedClient("sources");
   const plan = await client.messages.parse({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     max_tokens: 4000,

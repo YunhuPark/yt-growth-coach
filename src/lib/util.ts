@@ -15,6 +15,20 @@ export async function mapPool<T, R>(items: T[], size: number, fn: (t: T) => Prom
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/**
+ * Text with half-characters replaced. A cut through the middle of an emoji (or a comment that already holds one) leaves a lone
+ * surrogate, and a request body containing it is rejected as invalid JSON by the API it is sent to.
+ */
+export const wellFormed = (s: string) => s.replace(LONE_SURROGATE, "�");
+
+/** `s.slice(0, max)` that never ends in the first half of an emoji. */
+export function safeSlice(s: string, max: number): string {
+  const cut = s.slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
 /** Accepts a full YouTube URL (watch, shorts, youtu.be, embed) or a bare 11-char id. */
 export function parseVideoId(input: string): string | null {
   const s = input.trim();

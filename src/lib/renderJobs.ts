@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { renderVideo, type RenderOpts } from "./render";
+import { addMeta, tracked } from "./usage";
 
 export type RenderResult = { durationSec: number; bytes: number; layout: "short" | "long" };
 export type Job = { status: "running" | "done" | "error"; progress: number; error?: string; result?: RenderResult };
@@ -25,9 +26,17 @@ export function startRenderJob(args: {
   jobs.set(args.id, job);
   void (async () => {
     try {
-      const result = await renderVideo(args.input, args.dir, args.opts, (f) => {
-        job.progress = f;
-      });
+      const result = await tracked(
+        "render",
+        async () => {
+          const r = await renderVideo(args.input, args.dir, args.opts, (f) => {
+            job.progress = f;
+          });
+          addMeta({ outputSec: r.durationSec, bytes: r.bytes });
+          return r;
+        },
+        { layout: args.opts.layout ?? "short", cuts: args.opts.segments?.length ?? 1 },
+      );
       await fs.writeFile(
         path.join(args.dir, "meta.json"),
         JSON.stringify({ at: new Date().toISOString(), ...args.meta, ...result }, null, 2),
