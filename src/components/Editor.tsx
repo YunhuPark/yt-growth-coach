@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import AutoCut from "./AutoCut";
 import AutoEdit from "./AutoEdit";
 import { CaptionStyleProvider } from "./captionStyleContext";
 import HealthCheck from "./HealthCheck";
@@ -11,11 +12,12 @@ import StylePicker from "./StylePicker";
 import { EMPTY_SOURCE, type SourceState } from "./source";
 import UrlPlan from "./UrlPlan";
 
-type Tool = "shorts" | "auto" | "url";
+type Tool = "shorts" | "auto" | "cut" | "url";
 
 const TOOLS: { id: Tool; title: string; blurb: string }[] = [
   { id: "shorts", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상 하나에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑고, 자막을 붙여 쇼츠로 만듭니다." },
   { id: "auto", title: "한 편 자동 편집", blurb: "영상 한 편의 컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다." },
+  { id: "cut", title: "무음·군말 자동 컷", blurb: "말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 템포를 빠르게 합니다." },
   { id: "url", title: "영상 주소로 분석", blurb: "유튜브 주소만으로 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다(파일 없이도 가능)." },
 ];
 
@@ -47,7 +49,7 @@ export default function Editor() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">3. 무엇을 할까요?</h2>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {TOOLS.map((t) => (
             <button
               key={t.id}
@@ -77,6 +79,7 @@ export default function Editor() {
         <h2 className="font-semibold">4. 결과 확인하고 만들기</h2>
         {tool === "shorts" && <Highlights topic="" source={source} />}
         {tool === "auto" && <AutoEdit key={layout} topic="" layout={layout} source={source} />}
+        {tool === "cut" && <AutoCut source={source} />}
         {tool === "url" && <UrlPlan topic="" source={source} />}
       </div>
     </main>

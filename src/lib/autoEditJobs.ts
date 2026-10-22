@@ -1,11 +1,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { analyzeVideo, type Analysis } from "./analyzeVideo";
+import { analyzeVideo, detectSilences, type Analysis } from "./analyzeVideo";
 import { planEdit, type EditPlan, type PlanContext } from "./autoEdit";
 import { loadClipProfile } from "./channelProfile";
 import type { ClipProfile } from "./clipProfile";
 import { findHighlights, type Highlight } from "./highlights";
-import { transcribeVideo, type Transcriber } from "./transcribe";
+import type { Seg, Word } from "./cutPlan";
+import { transcribeVideo, transcribeWords, type Transcriber } from "./transcribe";
 import { addMeta, timed, tracked } from "./usage";
 import { fetchSignals, momentsHint } from "./urlPlan";
 
@@ -15,6 +16,8 @@ export type AutoJob = {
   error?: string;
   plan?: EditPlan;
   highlights?: Highlight[];
+  /** the silences (and, if asked for, the words) found by an auto-cut analysis; the page turns them into cuts */
+  cut?: CutAnalysis;
   /** what happened to the original-video address, when one was given: used, or why it was not */
   hintNote?: string;
   /** why a requested long-form summary was not made (for example the video is too short) */
@@ -22,6 +25,20 @@ export type AutoJob = {
   /** the channel's length range for Shorts, when there is enough history; shown beside the candidates */
   lengthRange?: { min: number; max: number } | null;
   duration?: number;
+};
+
+/** What an auto-cut analysis found. Which of it becomes a cut is decided on the page, so settings can change without a new run. */
+export type CutAnalysis = {
+  duration: number;
+  width?: number;
+  height?: number;
+  /** quiet stretches at the threshold given, of 0.3 s or longer */
+  silences: Seg[];
+  /** every spoken word with its time; empty unless filler words were asked for */
+  words: Word[];
+  fillersAnalyzed: boolean;
+  /** only the first 30 minutes are listened to for words */
+  wordsTruncated: boolean;
 };
 
 // Analysis and planning take a minute or more, so they run in the background and the page polls.
@@ -135,3 +152,62 @@ export const MIN_LONGFORM_SOURCE_SEC = 120;
 /** About half of the source, but at least a minute and at most 15 minutes: a summary, not a re-upload. */
 export const longformTarget = (durationSec: number) => Math.min(900, Math.max(60, Math.round(durationSec * 0.5)));
 
+/**
+ * Listens to a video for jump cuts: where it is quiet and, optionally, which words are hesitation sounds. No pictures are
+ * looked at and nothing is sent to an AI service; it all happens on this computer.
+ */
+export function startAutoCut(args: {
+  id: string;
+  dir: string;
+  input: string;
+  deleteInput: boolean;
+  /** quieter than this many dB counts as silence */
+  noiseDb: number;
+  /** also find hesitation words (needs the speech model) */
+  fillers: boolean;
+  transcriber?: Transcriber;
+}) {
+  const job: AutoJob = { status: "running", stage: "소리 분석 중" };
+  jobs.set(args.id, job);
+  void (async () => {
+    try {
+      await tracked("autocut", async () => {
+        const found = await timed("무음 분석", () => detectSilences(args.input, args.dir, { noiseDb: args.noiseDb, minSec: 0.3 }));
+        if (!found.hasAudio) throw new Error("이 영상에는 소리가 없어 무음·군말을 찾을 수 없습니다.");
+        addMeta({ inputSec: Math.round(found.duration), silences: found.silences.length, fillers: args.fillers });
+        let words: Word[] = [];
+        let wordsTruncated = false;
+        if (args.fillers) {
+          const w = await timed("음성 인식(군말)", () =>
+            transcribeWords(args.input, args.dir, {
+              duration: found.duration,
+              silences: found.silences,
+              transcriber: args.transcriber,
+              onStage: (s) => (job.stage = s),
+            }),
+          );
+          words = w.words;
+          wordsTruncated = w.truncated;
+        }
+        job.cut = {
+          duration: found.duration,
+          width: found.width,
+          height: found.height,
+          silences: found.silences,
+          words,
+          fillersAnalyzed: args.fillers,
+          wordsTruncated,
+        };
+        job.duration = found.duration;
+      });
+      job.status = "done";
+      job.stage = "완료";
+    } catch (e) {
+      job.status = "error";
+      job.error = e instanceof Error ? e.message : "분석에 실패했습니다.";
+    } finally {
+      if (args.deleteInput) await fs.rm(args.input, { force: true });
+      await fs.rm(args.dir, { recursive: true, force: true });
+    }
+  })();
+}

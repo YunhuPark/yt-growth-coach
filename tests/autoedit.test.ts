@@ -181,7 +181,8 @@ describe("segment validation", () => {
   it("rejects ranges outside the file, overlapping, or too short", () => {
     assert.throws(() => joinSegments([{ start: 0, end: 12 }], 10), /벗어났/);
     assert.throws(() => joinSegments([{ start: 0, end: 5 }, { start: 4, end: 8 }], 10), /겹치/);
-    assert.throws(() => joinSegments([{ start: 0, end: 0.2 }], 10), /0.5초/);
+    assert.throws(() => joinSegments([{ start: 0, end: 0.05 }], 10), /0.1초/);
+    assert.deepEqual(joinSegments([{ start: 0, end: 0.3 }], 10), [{ start: 0, end: 0.3 }], "a short piece is fine: jump cuts make them");
     assert.deepEqual(joinSegments([{ start: 1, end: 3 }, { start: 5, end: 9 }], 10), [{ start: 1, end: 3 }, { start: 5, end: 9 }]);
   });
 });

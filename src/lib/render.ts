@@ -180,14 +180,17 @@ export function baseFilter(layout: Layout, fit: "blur" | "cover", src?: { width?
   );
 }
 
-/** Validates keep-ranges against the file: inside it, in order, not overlapping, each at least half a second. */
+/** Validates keep-ranges against the file: inside it, in order, not overlapping, each at least MIN_PIECE_SEC long. */
+/** The shortest piece that may be kept; jump cuts make short ones, so this is small. */
+export const MIN_PIECE_SEC = 0.1;
+
 export function joinSegments(segments: { start: number; end: number }[], duration: number): { start: number; end: number }[] {
   const out: { start: number; end: number }[] = [];
   for (const x of segments) {
     if (!(Number.isFinite(x.start) && Number.isFinite(x.end)) || x.start < 0 || x.end > duration + 0.05) {
       throw new Error("남길 구간이 영상 길이를 벗어났습니다. 구간 시간을 확인해 주세요.");
     }
-    if (x.end - x.start < 0.5) throw new Error("남길 구간은 0.5초 이상이어야 합니다.");
+    if (x.end - x.start < MIN_PIECE_SEC) throw new Error(`남길 구간은 ${MIN_PIECE_SEC}초 이상이어야 합니다.`);
     if (out.length && x.start < out[out.length - 1].end) throw new Error("남길 구간이 서로 겹치거나 시간 순서가 맞지 않습니다.");
     out.push({ start: x.start, end: Math.min(x.end, duration) });
   }
@@ -261,7 +264,10 @@ export async function renderVideo(
   if (segs) {
     const parts = segs.map((x, i) => {
       const v = `[0:v]trim=start=${sec(x.start)}:end=${sec(x.end)},setpts=PTS-STARTPTS[sv${i}]`;
-      const a = info.hasAudio ? `;[0:a]atrim=start=${sec(x.start)}:end=${sec(x.end)},asetpts=PTS-STARTPTS[sa${i}]` : "";
+      // A 12 ms fade at each end of every piece keeps the join from clicking, which matters when there are many cuts.
+      const len = x.end - x.start;
+      const fade = len >= 0.05 ? `,afade=t=in:st=0:d=0.012,afade=t=out:st=${(len - 0.012).toFixed(3)}:d=0.012` : "";
+      const a = info.hasAudio ? `;[0:a]atrim=start=${sec(x.start)}:end=${sec(x.end)},asetpts=PTS-STARTPTS${fade}[sa${i}]` : "";
       return v + a;
     });
     const labels = segs.map((_, i) => `[sv${i}]${info.hasAudio ? `[sa${i}]` : ""}`).join("");
@@ -269,6 +275,9 @@ export async function renderVideo(
     vin = "cv";
   }
   const graph = `${pre}${baseFilter(layout, opts.fit, info, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
+
+  // The graph goes through a file: with a few hundred cuts it is longer than a command line may be (Windows allows ~32 KB).
+  await fs.writeFile(path.join(dir, "graph.txt"), graph, "utf8");
 
   // ffmpeg reports its position on stdout (out_time_us / out_time_ms, both in microseconds).
   let buffer = "";
@@ -286,7 +295,7 @@ export async function renderVideo(
     [
       "-y", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1", "-nostats",
       ...(segs ? ["-i", input] : ["-ss", sec(start), "-i", input, "-t", sec(outDur)]),
-      "-filter_complex", graph,
+      "-filter_complex_script", "graph.txt",
       "-map", "[vout]", ...(segs ? (info.hasAudio ? ["-map", "[ca]"] : []) : ["-map", "0:a?"]),
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",

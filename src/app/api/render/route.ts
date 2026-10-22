@@ -12,7 +12,7 @@ const Options = z.object({
   trimStart: z.number().min(0).max(14400).optional(),
   trimEnd: z.number().min(0).max(14400).optional(),
   // Keep only these source ranges, joined in order (from the AI edit plan). Replaces trimStart/trimEnd.
-  segments: z.array(z.object({ start: z.number().min(0).max(14400), end: z.number().min(0).max(14400) })).min(1).max(80).optional(),
+  segments: z.array(z.object({ start: z.number().min(0).max(14400), end: z.number().min(0).max(14400) })).min(1).max(600).optional(),
   hook: z.object({ text: z.string().max(120), seconds: z.number().min(0.5).max(10) }).optional(),
   captions: z.array(z.object({ start: z.number().min(0), end: z.number().min(0), text: z.string().max(120) })).max(120),
   ending: z.object({ text: z.string().max(60), seconds: z.number().min(0.5).max(20) }).optional(),

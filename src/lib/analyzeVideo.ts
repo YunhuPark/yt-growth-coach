@@ -88,6 +88,29 @@ export function summarizeLoudness(l: Loudness[], bucket: number): { t: number; d
 }
 
 /**
+ * Just the silences, with settings the caller chooses. The fast pass for jump cuts: it only listens, and reports every quiet
+ * stretch of at least `minSec` (the caller can then decide which ones to cut).
+ */
+export async function detectSilences(
+  input: string,
+  dir: string,
+  opts: { noiseDb: number; minSec: number },
+): Promise<{ duration: number; hasAudio: boolean; width?: number; height?: number; silences: Silence[] }> {
+  await fs.mkdir(dir, { recursive: true });
+  const info = await probe(input, dir);
+  if (!info.hasAudio) return { duration: info.duration, hasAudio: false, width: info.width, height: info.height, silences: [] };
+  let log = "";
+  await run(
+    ["-hide_banner", "-i", input, "-vn", "-af", `silencedetect=noise=${opts.noiseDb}dB:d=${opts.minSec}`, "-f", "null", "-"],
+    dir,
+    Math.max(10 * 60_000, info.duration * 500),
+    undefined,
+    (c) => (log += c),
+  );
+  return { duration: info.duration, hasAudio: true, width: info.width, height: info.height, silences: parseSilences(log, info.duration) };
+}
+
+/**
  * Looks at the whole file with ffmpeg. Scene changes and loudness are separate passes; a failure in one (for example a
  * file with no audio) just leaves that part empty. Frames are written to `dir` as f0.jpg, f1.jpg, ...
  */

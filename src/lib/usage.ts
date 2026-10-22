@@ -13,6 +13,7 @@ const als = new AsyncLocalStorage<Ledger>();
 // Saves run one after another: each is a read-modify-write of the same file.
 let queue: Promise<unknown> = Promise.resolve();
 function persist(record: UsageRecord) {
+  if (process.env.USAGE_LOG === "off") return queue; // USAGE_LOG=off: measure nothing (used by tests)
   queue = queue
     .then(async () => saveUsage([...(await loadUsage()), record]))
     .catch(() => {

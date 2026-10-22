@@ -16,7 +16,7 @@ export type Speech = { start: number; end: number; text: string };
 export type Transcript = { segments: Speech[]; truncated: boolean };
 
 /** What the real speech engine looks like to this module, so tests can swap in a fake. */
-export type Transcriber = (samples: Float32Array, opts: { language: string }) => Promise<Speech[]>;
+export type Transcriber = (samples: Float32Array, opts: { language: string; words?: boolean }) => Promise<Speech[]>;
 
 export const modelsDir = () => path.join(process.cwd(), ".data", "models");
 
@@ -129,7 +129,7 @@ const g = globalThis as unknown as { __asr?: Promise<Asr> };
 
 /** The real engine. Loaded once and kept; the first call downloads the model (reporting progress). */
 export function whisperTranscriber(onProgress?: (p: Progress) => void): Transcriber {
-  return async (samples, { language }) => {
+  return async (samples, { language, words }) => {
     g.__asr ??= (async () => {
       // Dynamic import: the engine only loads when speech recognition is actually used.
       const { pipeline, env } = await import("@huggingface/transformers");
@@ -144,10 +144,54 @@ export function whisperTranscriber(onProgress?: (p: Progress) => void): Transcri
       throw new Error(`음성 인식 모델을 준비하지 못했습니다(인터넷 연결 확인): ${e instanceof Error ? e.message : e}`);
     });
     const asr = await g.__asr;
-    const res = await asr(samples, { language, task: "transcribe", return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 });
+    // "word" gives each word its own time (used to find hesitation sounds); the default gives whole phrases.
+    const res = await asr(samples, { language, task: "transcribe", return_timestamps: words ? "word" : true, chunk_length_s: 30, stride_length_s: 5 });
     const chunks = (Array.isArray(res) ? res[0] : res).chunks ?? [];
-    return chunks.map((c) => ({ start: c.timestamp[0], end: c.timestamp[1] ?? c.timestamp[0] + 2, text: c.text }));
+    return chunks.map((c) => ({ start: c.timestamp[0], end: c.timestamp[1] ?? c.timestamp[0] + (words ? 0.4 : 2), text: c.text }));
   };
+}
+
+/** The real engine, reporting the first-use model download as a stage message. */
+function engineWithProgress(onStage?: (s: string) => void): Transcriber {
+  let lastShown = -1;
+  return whisperTranscriber((p) => {
+    // "progress_total" is the library's combined figure across all model files (the per-file ones jump around).
+    if (p.status === "progress_total" && p.progress !== undefined && p.progress < 100 && Math.floor(p.progress / 10) !== lastShown) {
+      lastShown = Math.floor(p.progress / 10);
+      onStage?.(`음성 인식 모델 내려받는 중 (처음 한 번, 약 ${SPEECH_MODEL_SIZE_MB}MB) ${Math.round(p.progress)}%`);
+    }
+  });
+}
+
+export type TimedWord = { start: number; end: number; text: string };
+
+/**
+ * Every spoken word with its own time, for finding hesitation sounds. Like transcribeVideo it only listens to the stretches
+ * that have sound and puts the times back at their place in the file. Unlike it, nothing is filtered: a repeated "음" is two
+ * hesitations, not an echo.
+ */
+export async function transcribeWords(
+  input: string,
+  dir: string,
+  opts: { duration: number; silences: Silence[]; language?: string; transcriber?: Transcriber; onStage?: (s: string) => void },
+): Promise<{ words: TimedWord[]; truncated: boolean }> {
+  const seconds = Math.min(opts.duration, MAX_TRANSCRIBE_SEC);
+  opts.onStage?.("음성 추출 중");
+  const samples = await extractAudio(input, dir, seconds);
+  const transcriber = opts.transcriber ?? engineWithProgress(opts.onStage);
+  const language = opts.language ?? "korean";
+  const regions = speechRegions(opts.silences, seconds);
+  const words: TimedWord[] = [];
+  for (const [i, r] of regions.entries()) {
+    opts.onStage?.(`군말 찾는 중 ${i + 1}/${regions.length} (영상 길이에 따라 몇 분)`);
+    const piece = samples.slice(Math.floor(r.start * SAMPLE_RATE), Math.min(samples.length, Math.ceil(r.end * SAMPLE_RATE)));
+    for (const w of await transcriber(piece, { language, words: true })) {
+      const text = w.text.replace(/�/g, "").trim();
+      if (!text) continue;
+      words.push({ start: Math.round((w.start + r.start) * 100) / 100, end: Math.round((w.end + r.start) * 100) / 100, text });
+    }
+  }
+  return { words: words.sort((a, b) => a.start - b.start), truncated: opts.duration > MAX_TRANSCRIBE_SEC };
 }
 
 export async function transcribeVideo(
@@ -167,16 +211,7 @@ export async function transcribeVideo(
   opts.onStage?.("음성 추출 중");
   const samples = await extractAudio(input, dir, seconds, opts.startSec ?? 0);
 
-  let lastShown = -1;
-  const transcriber =
-    opts.transcriber ??
-    whisperTranscriber((p) => {
-      // "progress_total" is the library's combined figure across all model files (the per-file ones jump around).
-      if (p.status === "progress_total" && p.progress !== undefined && p.progress < 100 && Math.floor(p.progress / 10) !== lastShown) {
-        lastShown = Math.floor(p.progress / 10);
-        opts.onStage?.(`음성 인식 모델 내려받는 중 (처음 한 번, 약 ${SPEECH_MODEL_SIZE_MB}MB) ${Math.round(p.progress)}%`);
-      }
-    });
+  const transcriber = opts.transcriber ?? engineWithProgress(opts.onStage);
   const language = opts.language ?? "korean";
   const regions = speechRegions(opts.silences, seconds);
   const raw: Speech[] = [];
