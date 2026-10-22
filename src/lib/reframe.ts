@@ -94,10 +94,16 @@ export function chooseTarget(boxes: Box[], prev: number | null, cropFrac: number
 }
 
 export type Focus = { cx: number; cy: number };
+/** A detection with less than this share of the biggest one's area, in the same look, is left out when choosing where to look. */
+const MIN_RELATIVE_AREA = 0.1;
 
 /** Like chooseTarget, and also where to look vertically: a person's upper body (head room), the middle of anything else. */
 export function chooseFocus(boxes: Box[], prev: number | null, cropFrac: number): Focus | null {
-  const found = dedupeBoxes(boxes);
+  // Something far smaller than the main subject (a parked car behind a dog, a passer-by behind the speaker) is scenery: it must
+  // not pull the middle of the group toward itself. A subject alone is followed however small it is.
+  const all = dedupeBoxes(boxes);
+  const biggest = Math.max(0, ...all.map(area));
+  const found = all.filter((b) => area(b) >= biggest * MIN_RELATIVE_AREA);
   if (!found.length) return null;
   const focus = (set: Box[], cx: number): Focus => {
     const y0 = Math.min(...set.map((b) => b.y0));

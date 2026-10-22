@@ -60,6 +60,19 @@ describe("chooseFocus", () => {
   });
 });
 
+describe("scenery", () => {
+  it("does not let something far smaller than the main subject pull the middle of the group", () => {
+    const dog = labeled("dog", 0.3, 0.5, 0.2, 0.9);
+    const car = labeled("car", 0.8, 0.84, 0.6, 0.63);
+    assert.ok(Math.abs(chooseFocus([dog, car], null, 0.5)!.cx - 0.4) < 1e-9);
+    assert.ok(Math.abs(chooseFocus([car], null, 0.5)!.cx - 0.82) < 1e-9, "alone, it is followed");
+  });
+  it("still takes the group middle for people of different but comparable size", () => {
+    const f = chooseFocus([box(0.1, 0.2, 0.9, 0.2, 0.9), box(0.3, 0.38, 0.9, 0.4, 0.9)], null, 0.5)!;
+    assert.ok(Math.abs(f.cx - 0.24) < 1e-9);
+  });
+});
+
 describe("assignTracks", () => {
   const look = (t: number, ...b: Box[]): Look => ({ t, boxes: b });
   it("keeps one id for a person who moves a little between looks, and a new id for a second person", () => {
