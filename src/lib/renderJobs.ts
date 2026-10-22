@@ -5,7 +5,7 @@ import type { Target } from "./reframe";
 import { renderVideo, type RenderOpts } from "./render";
 import { addMeta, timed, tracked } from "./usage";
 
-export type RenderResult = { durationSec: number; bytes: number; layout: "short" | "long" };
+export type RenderResult = { durationSec: number; bytes: number; layout: "short" | "long"; /** how many transitions and sounds were put in, when effects were asked for */ effects?: { transitions: number; sounds: number } };
 export type Job = {
   status: "running" | "done" | "error";
   progress: number;
@@ -53,6 +53,10 @@ export function startRenderJob(args: {
             job.progress = f;
           });
           addMeta({ outputSec: r.durationSec, bytes: r.bytes });
+          if (r.effects && r.effects.transitions + r.effects.sounds === 0) {
+            const why = "전환·효과음을 넣을 곳이 없었습니다(컷이 없거나, 컷에서 건너뛴 길이가 1초 미만이거나, 후크·엔딩이 없음).";
+            job.note = job.note ? `${job.note} ${why}` : why;
+          }
           return r;
         },
         { layout: args.opts.layout ?? "short", cuts: args.opts.segments?.length ?? 1 },

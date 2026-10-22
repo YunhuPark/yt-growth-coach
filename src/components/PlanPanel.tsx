@@ -5,6 +5,7 @@ import type { EditPlan } from "@/lib/autoEdit";
 import { formatClock, withChapterCards } from "@/lib/chapters";
 import { planCues } from "@/lib/exporters";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
 import ExportMenu from "./ExportMenu";
 import { api } from "./shared";
@@ -41,6 +42,7 @@ export default function PlanPanel({
   clipName?: string;
 }) {
   const { style } = useCaptionStyle();
+  const effects = useEffectsOption();
   const follow = useReframeOption("short");
   const [rendering, setRendering] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -70,6 +72,7 @@ export default function PlanPanel({
           captions,
           ending: plan.ending ?? undefined,
           style,
+          effects,
           reframe: layout === "short" ? follow : undefined,
         }),
       });

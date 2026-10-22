@@ -8,6 +8,7 @@ import { lengthMismatch, MISMATCH_LIMIT } from "@/lib/mismatch";
 import type { RangeInfo } from "@/lib/rangeCaptions";
 import type { UrlCandidate, UrlVideo } from "@/lib/urlPlan";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
 import CaptionEditor from "./CaptionEditor";
 import ExportMenu from "./ExportMenu";
@@ -44,6 +45,7 @@ export default function BriefRender({
   clipName: string;
 }) {
   const { style } = useCaptionStyle();
+  const effects = useEffectsOption();
   const reframe = useReframeOption("short");
   const [busy, setBusy] = useState<"prepare" | "render" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export default function BriefRender({
           hook: prep.hook.trim() ? { text: prep.hook, seconds: 2.5 } : undefined,
           captions: editedCaptions(prep.caps),
           style,
+          effects,
           reframe,
         }),
       });

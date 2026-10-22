@@ -6,6 +6,7 @@ import { editedCaptions, toCaps, type Cap } from "@/lib/captionEdit";
 import type { EditPlan } from "@/lib/autoEdit";
 import { planCues } from "@/lib/exporters";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
 import CaptionEditor from "./CaptionEditor";
 import ExportMenu from "./ExportMenu";
@@ -42,6 +43,7 @@ const clock = (s: number) => {
 export default function Highlights({ topic: initialTopic, source }: { topic: string; source: SourceState }) {
   const { file, sourcePath, basis } = source;
   const { style } = useCaptionStyle();
+  const effects = useEffectsOption();
   const reframe = useReframeOption("short");
   const [sourceUrl, setSourceUrl] = useState("");
   const [hintNote, setHintNote] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
           hook: hooks[i]?.trim() ? { text: hooks[i], seconds: 2.5 } : undefined,
           captions: editedCaptions(caps[i] ?? []),
           style,
+          effects,
           reframe,
         }),
       });

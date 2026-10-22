@@ -5,6 +5,7 @@ import { formatClock } from "@/lib/chapters";
 import { cutStats, DEFAULT_CUT_OPTIONS, keepSegments, MAX_PIECES, planRemovals, type CutOptions, type Removal } from "@/lib/cutPlan";
 import type { CutAnalysis } from "@/lib/autoEditJobs";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
 import ExportMenu from "./ExportMenu";
 import RangePreview from "./RangePreview";
@@ -31,6 +32,7 @@ const SENSITIVITY: { db: number; label: string }[] = [
 export default function AutoCut({ source }: { source: SourceState }) {
   const { file, sourcePath, basis } = source;
   const { style } = useCaptionStyle();
+  const effects = useEffectsOption();
   const follow = useReframeOption("short");
   const [opts, setOpts] = useState<CutOptions>(DEFAULT_CUT_OPTIONS);
   const [stage, setStage] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
     try {
       const res = await fetch("/api/render", {
         method: "POST",
-        body: body({ layout: useLayout, fit: "blur", segments: kept, captions: [], style, reframe: useLayout === "short" ? follow : undefined }),
+        body: body({ layout: useLayout, fit: "blur", segments: kept, captions: [], style, effects, reframe: useLayout === "short" ? follow : undefined }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `렌더링 실패 (${res.status})`);

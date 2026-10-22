@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { normalizeStyle, styledText, type CaptionStyle } from "./captionStyle";
+import { hasEffects, normalizeEffects, planEffects, soundGraph, type EffectsOpts } from "./effects";
 import { cropSizePx, cropX, cxAt, cyAt, panScript, type Keyframe } from "./reframe";
 
 export const MAX_SHORT_SEC = 180;
@@ -26,6 +27,8 @@ export type RenderOpts = {
    * For a vertical result from a wider source: where the crop window sits over time (centre as a fraction of the width, at times
    * in the source). Without it the whole picture is shown over a blurred copy of itself, as always.
    */
+  /** transitions and sound effects at the cuts, and stings for the hook and ending; none by default */
+  effects?: Partial<EffectsOpts>;
   reframe?: {
     keyframes: Keyframe[];
     /** 1 (default) = the window is as tall as the picture; above 1 it is that much smaller, so the subject fills more of the result */
@@ -241,8 +244,18 @@ export async function renderVideo(
   };
   const text = (file: string, o: string) => `drawtext=fontfile=font.ttf:textfile=${file}:reload=0:${o}`;
 
+  // Transitions and sounds at the cuts. The picture filters come first in the chain so captions are not flashed or zoomed.
+  const fx = normalizeEffects(opts.effects);
+  const plan = hasEffects(fx)
+    ? planEffects(
+        { pieces: segs, outSec: outDur, hook: !!opts.hook?.text.trim(), endingFrom: opts.ending?.text.trim() ? Math.max(0, outDur - opts.ending.seconds) : null },
+        fx,
+        { w: L.w, h: L.h },
+      )
+    : null;
+
   const style = normalizeStyle(opts.style);
-  const chain: string[] = [];
+  const chain: string[] = [...(plan?.videoFilters ?? [])];
   if (opts.hook?.text.trim()) {
     const st = styledText("hook", L.hook, style, layout);
     const f = await textFile(opts.hook.text, st.wrap);
@@ -312,7 +325,15 @@ export async function renderVideo(
     vin = "rf";
     frameInfo = { width: cropW, height: cropH }; // already the frame's shape, so no blurred backdrop is needed
   }
-  const graph = `${pre}${baseFilter(layout, opts.fit, frameInfo, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
+  let graph = `${pre}${baseFilter(layout, opts.fit, frameInfo, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
+  // The sounds are laid over the voice (or over silence when the video has none).
+  const withSounds = !!plan?.sounds.length;
+  if (withSounds) {
+    // The voice keeps its own channels: forcing mono to stereo would lower it by 3 dB.
+    const fmt = "aformat=sample_fmts=fltp:sample_rates=44100";
+    const base = info.hasAudio ? `${segs ? "[ca]" : "[0:a]"}aresample=44100,${fmt}` : `anullsrc=r=44100:cl=stereo:d=${sec(outDur)},${fmt}`;
+    graph += `;${base}[abase];${soundGraph(plan!.sounds, fx.volume, "abase", "aout")}`;
+  }
 
   // The graph goes through a file: with a few hundred cuts it is longer than a command line may be (Windows allows ~32 KB).
   await fs.writeFile(path.join(dir, "graph.txt"), graph, "utf8");
@@ -334,7 +355,7 @@ export async function renderVideo(
       "-y", "-hide_banner", "-loglevel", "error", "-progress", "pipe:1", "-nostats",
       ...(segs ? ["-i", input] : ["-ss", sec(start), "-i", input, "-t", sec(outDur)]),
       "-filter_complex_script", "graph.txt",
-      "-map", "[vout]", ...(segs ? (info.hasAudio ? ["-map", "[ca]"] : []) : ["-map", "0:a?"]),
+      "-map", "[vout]", ...(withSounds ? ["-map", "[aout]"] : segs ? (info.hasAudio ? ["-map", "[ca]"] : []) : ["-map", "0:a?"]),
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
       "output.mp4",
@@ -347,5 +368,10 @@ export async function renderVideo(
 
   onProgress?.(1);
   const { size } = await fs.stat(path.join(dir, "output.mp4"));
-  return { durationSec: Math.round(outDur * 10) / 10, bytes: size, layout };
+  return {
+    durationSec: Math.round(outDur * 10) / 10,
+    bytes: size,
+    layout,
+    ...(plan ? { effects: { transitions: fx.transition === "none" ? 0 : plan.cuts.length, sounds: plan.sounds.length } } : {}),
+  };
 }

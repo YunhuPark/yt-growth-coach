@@ -6,6 +6,8 @@ import AutoCut from "./AutoCut";
 import AutoEdit from "./AutoEdit";
 import AutoReframe from "./AutoReframe";
 import { CaptionStyleProvider } from "./captionStyleContext";
+import EffectsPicker from "./EffectsPicker";
+import { EffectsProvider } from "./effectsContext";
 import FramingPicker from "./FramingPicker";
 import { FramingProvider } from "./framingContext";
 import HealthCheck from "./HealthCheck";
@@ -37,6 +39,7 @@ export default function Editor() {
   return (
     <CaptionStyleProvider>
     <FramingProvider>
+    <EffectsProvider>
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -53,6 +56,8 @@ export default function Editor() {
       <StylePicker title="2. 자막 스타일 (선택)" />
 
       <FramingPicker title="2-2. 세로 화면 (선택)" />
+
+      <EffectsPicker title="2-3. 전환·효과음 (선택)" />
 
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">3. 무엇을 할까요?</h2>
@@ -91,6 +96,7 @@ export default function Editor() {
         {tool === "url" && <UrlPlan topic="" source={source} />}
       </div>
     </main>
+    </EffectsProvider>
     </FramingProvider>
     </CaptionStyleProvider>
   );

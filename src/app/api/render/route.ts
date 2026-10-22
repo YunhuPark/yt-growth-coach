@@ -21,6 +21,17 @@ const Options = z.object({
     .object({ preset: z.string(), position: z.string(), scale: z.number() })
     .optional()
     .transform((s) => (s ? normalizeStyle(s as Partial<CaptionStyle>) : undefined)),
+  // Transitions and sound effects at the cuts (and stings for the hook and the ending).
+  effects: z
+    .object({
+      transition: z.enum(["none", "flash", "dip", "punch"]).optional(),
+      cutSound: z.enum(["none", "whoosh", "pop", "tick"]).optional(),
+      hookSound: z.boolean().optional(),
+      endingSound: z.boolean().optional(),
+      volume: z.number().min(0.1).max(1).optional(),
+      allCuts: z.boolean().optional(),
+    })
+    .optional(),
   // Vertical result from a wider video: follow the person. `auto` finds them here; `keyframes` is a path the page already worked out.
   reframe: z
     .union([
