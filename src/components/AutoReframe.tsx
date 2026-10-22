@@ -127,7 +127,10 @@ export default function AutoReframe({ source }: { source: SourceState }) {
           c.looks++;
         } else m.set(b.id, { id: b.id, label: labelOf(b), first: look.t, last: look.t, looks: 1 });
       }
-    return [...m.values()].sort((a, b) => b.looks - a.looks).slice(0, 12);
+    // a detection seen in a single look is usually a flicker; leave it out of the list (its box can still be clicked in a picture)
+    const all = [...m.values()].sort((a, b) => b.looks - a.looks);
+    const steady = all.filter((c) => c.looks >= 2);
+    return (steady.length ? steady : all).slice(0, 12);
   }, [tracked, target]);
 
   const togglePick = (id: number) => setPicks((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));

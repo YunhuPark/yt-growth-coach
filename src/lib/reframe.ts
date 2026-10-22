@@ -120,10 +120,14 @@ export function chooseFocus(boxes: Box[], prev: number | null, cropFrac: number)
 
 /**
  * Tells the same thing apart across looks: a detection takes the id of the one it overlaps or sits closest to in the looks of the
- * last couple of seconds, and starts a new id otherwise (a new person, or a cut in the video). Greedy, nearest first.
+ * last couple of seconds, or of one that vanished up to 8 seconds ago from just about the same spot, and starts a new id otherwise
+ * (a new person, or a cut in the video). Greedy, nearest first.
  */
 export function assignTracks(looks: Look[]): TrackedLook[] {
   const MAX_GAP_SEC = 1.6;
+  // Someone who left and came back to the same place within this long is taken to be the same one (a person ducking out of
+  // frame, or hidden for a moment behind another). Stricter than the normal match: close to where they were, about the same size.
+  const REAPPEAR_SEC = 8;
   const live: { id: number; box: Box; t: number }[] = [];
   let next = 1;
   const out: TrackedLook[] = [];
@@ -146,6 +150,21 @@ export function assignTracks(looks: Look[]): TrackedLook[] {
       takenT.add(p.ti);
       ids.set(p.bi, live[p.ti].id);
     }
+    look.boxes.forEach((b, bi) => {
+      if (ids.has(bi)) return;
+      let best = null as { ti: number; d: number } | null; // set inside the loop below, which the compiler does not follow
+      live.forEach((tr, ti) => {
+        const gap = look.t - tr.t;
+        if (takenT.has(ti) || gap <= MAX_GAP_SEC || gap > REAPPEAR_SEC || labelOf(tr.box) !== labelOf(b)) return;
+        const d = dist(tr.box, b);
+        const ratio = area(b) / Math.max(area(tr.box), 1e-9);
+        if (d < 0.08 && ratio > 0.6 && ratio < 1.67 && (!best || d < best.d)) best = { ti, d };
+      });
+      if (best) {
+        takenT.add(best.ti);
+        ids.set(bi, live[best.ti].id);
+      }
+    });
     const boxes: TrackedBox[] = look.boxes.map((b, bi) => ({ ...b, id: ids.get(bi) ?? next++ }));
     for (const b of boxes) {
       const tr = live.find((x) => x.id === b.id);

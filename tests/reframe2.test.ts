@@ -85,8 +85,20 @@ describe("assignTracks", () => {
   it("keeps the id across a short miss but not a long one", () => {
     const short = assignTracks([look(0, box(0.2, 0.3)), look(0.5), look(1, box(0.21, 0.31))]);
     assert.equal(short[2].boxes[0].id, short[0].boxes[0].id);
-    const long = assignTracks([look(0, box(0.2, 0.3)), look(3, box(0.21, 0.31))]);
+    const long = assignTracks([look(0, box(0.2, 0.3)), look(12, box(0.21, 0.31))]);
     assert.notEqual(long[1].boxes[0].id, long[0].boxes[0].id);
+  });
+  it("takes someone who comes back to the same spot within a few seconds for the same one, but not someone elsewhere or of another size", () => {
+    const back = assignTracks([look(0, box(0.2, 0.3)), look(4, box(0.21, 0.31))]);
+    assert.equal(back[1].boxes[0].id, back[0].boxes[0].id);
+    const elsewhere = assignTracks([look(0, box(0.2, 0.3)), look(4, box(0.5, 0.6))]);
+    assert.notEqual(elsewhere[1].boxes[0].id, elsewhere[0].boxes[0].id);
+    const bigger = assignTracks([look(0, box(0.2, 0.3)), look(4, box(0.15, 0.4))]);
+    assert.notEqual(bigger[1].boxes[0].id, bigger[0].boxes[0].id);
+  });
+  it("does not give one id to two people in the same look", () => {
+    const t = assignTracks([look(0, box(0.2, 0.3)), look(4, box(0.21, 0.31), box(0.22, 0.32))]);
+    assert.notEqual(t[1].boxes[0].id, t[1].boxes[1].id);
   });
   it("does not mix up a person with a dog next to them", () => {
     const t = assignTracks([look(0, box(0.3, 0.4), labeled("dog", 0.32, 0.42, 0.6, 0.9)), look(0.5, box(0.31, 0.41), labeled("dog", 0.33, 0.43, 0.6, 0.9))]);
