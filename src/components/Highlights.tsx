@@ -6,6 +6,7 @@ import { editedCaptions, toCaps, type Cap } from "@/lib/captionEdit";
 import type { EditPlan } from "@/lib/autoEdit";
 import { planCues } from "@/lib/exporters";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useReframeOption } from "./framingContext";
 import CaptionEditor from "./CaptionEditor";
 import ExportMenu from "./ExportMenu";
 import PlanPanel from "./PlanPanel";
@@ -26,8 +27,8 @@ type AutoStatus = {
 };
 
 const FIT_LABEL = { within: "내 채널 잘된 길이", shorter: "내 채널 잘된 쇼츠보다 짧음", longer: "내 채널 잘된 쇼츠보다 김" } as const;
-type RenderStatus = { status: "running" | "done" | "error"; progress: number; error?: string; result?: { durationSec: number; bytes: number } };
-type Made = { state: "running" | "done" | "error"; progress: number; id?: string; durationSec?: number; bytes?: number; error?: string };
+type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
+type Made = { state: "running" | "done" | "error"; progress: number; stage?: string; note?: string; id?: string; durationSec?: number; bytes?: number; error?: string };
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const clock = (s: number) => {
@@ -41,6 +42,7 @@ const clock = (s: number) => {
 export default function Highlights({ topic: initialTopic, source }: { topic: string; source: SourceState }) {
   const { file, sourcePath, basis } = source;
   const { style } = useCaptionStyle();
+  const reframe = useReframeOption("short");
   const [sourceUrl, setSourceUrl] = useState("");
   const [hintNote, setHintNote] = useState<string | null>(null);
   const [topic, setTopic] = useState(initialTopic);
@@ -123,6 +125,7 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
           hook: hooks[i]?.trim() ? { text: hooks[i], seconds: 2.5 } : undefined,
           captions: editedCaptions(caps[i] ?? []),
           style,
+          reframe,
         }),
       });
       const json = await res.json();
@@ -130,10 +133,10 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
       for (;;) {
         await wait(1000);
         const st = await api<RenderStatus>(`/api/render/status?id=${json.id}`);
-        patch(i, { progress: st.progress });
+        patch(i, { progress: st.progress, stage: st.stage });
         if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
         if (st.status === "done" && st.result) {
-          patch(i, { state: "done", progress: 1, id: json.id, durationSec: st.result.durationSec, bytes: st.result.bytes });
+          patch(i, { state: "done", progress: 1, stage: undefined, note: st.note, id: json.id, durationSec: st.result.durationSec, bytes: st.result.bytes });
           // Remember which candidate this was, so it can later be linked to the uploaded video and its AI score checked.
           fetch("/api/clips", {
             method: "POST",
@@ -285,7 +288,7 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
                   />
                   <div className="flex flex-col gap-2">
                     <button className="btn-primary w-fit" onClick={() => make(i)} disabled={m?.state === "running" || busyMaking}>
-                      {m?.state === "running" ? `만드는 중… ${Math.round(m.progress * 100)}%` : m?.state === "done" ? "다시 만들기" : "이 구간으로 쇼츠 만들기"}
+                      {m?.state === "running" ? m.stage ? `${m.stage}…` : `만드는 중… ${Math.round(m.progress * 100)}%` : m?.state === "done" ? "다시 만들기" : "이 구간으로 쇼츠 만들기"}
                     </button>
                     {m?.state === "running" && (
                       <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(m.progress * 100)}>
@@ -298,6 +301,7 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
                     <div className="flex flex-col items-start gap-2">
                       <video className="max-h-[480px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${m.id}`} />
                       <p className="text-xs text-muted">{m.durationSec}초 · {((m.bytes ?? 0) / 1024 / 1024).toFixed(1)}MB</p>
+                      {m.note && <p className="text-xs text-bad">{m.note}</p>}
                       <a className="btn-primary" href={`/api/render/file?id=${m.id}&download=1`}>mp4 다운로드</a>
                     </div>
                   )}

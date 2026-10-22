@@ -5,13 +5,14 @@ import { formatClock } from "@/lib/chapters";
 import { cutStats, DEFAULT_CUT_OPTIONS, keepSegments, MAX_PIECES, planRemovals, type CutOptions, type Removal } from "@/lib/cutPlan";
 import type { CutAnalysis } from "@/lib/autoEditJobs";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useReframeOption } from "./framingContext";
 import ExportMenu from "./ExportMenu";
 import RangePreview from "./RangePreview";
 import { api } from "./shared";
 import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; error?: string; cut?: CutAnalysis };
-type RenderStatus = { status: "running" | "done" | "error"; progress: number; error?: string; result?: { durationSec: number; bytes: number } };
+type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const key = (r: Removal) => `${r.kind}:${r.start.toFixed(2)}`;
@@ -30,6 +31,7 @@ const SENSITIVITY: { db: number; label: string }[] = [
 export default function AutoCut({ source }: { source: SourceState }) {
   const { file, sourcePath, basis } = source;
   const { style } = useCaptionStyle();
+  const follow = useReframeOption("short");
   const [opts, setOpts] = useState<CutOptions>(DEFAULT_CUT_OPTIONS);
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +40,8 @@ export default function AutoCut({ source }: { source: SourceState }) {
   const [layout, setLayout] = useState<"long" | "short" | "auto">("auto");
   const [rendering, setRendering] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [renderStage, setRenderStage] = useState<string | null>(null);
+  const [renderNote, setRenderNote] = useState<string | null>(null);
   const [out, setOut] = useState<{ id: string; durationSec: number; bytes: number } | null>(null);
 
   const analyzing = stage !== null;
@@ -102,12 +106,14 @@ export default function AutoCut({ source }: { source: SourceState }) {
     if (!kept.length) return;
     setError(null);
     setOut(null);
+    setRenderNote(null);
+    setRenderStage(null);
     setProgress(0);
     setRendering(true);
     try {
       const res = await fetch("/api/render", {
         method: "POST",
-        body: body({ layout: useLayout, fit: "blur", segments: kept, captions: [], style }),
+        body: body({ layout: useLayout, fit: "blur", segments: kept, captions: [], style, reframe: useLayout === "short" ? follow : undefined }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `렌더링 실패 (${res.status})`);
@@ -115,9 +121,11 @@ export default function AutoCut({ source }: { source: SourceState }) {
         await wait(1000);
         const st = await api<RenderStatus>(`/api/render/status?id=${json.id}`);
         setProgress(st.progress);
+        setRenderStage(st.stage ?? null);
         if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
         if (st.status === "done" && st.result) {
           setOut({ id: json.id, ...st.result });
+          setRenderNote(st.note ?? null);
           break;
         }
       }
@@ -256,7 +264,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
                 <option value="short">세로 쇼츠 1080×1920 (3분 이하)</option>
               </select>
               <button className="btn-primary" onClick={render} disabled={!ready || !kept.length || tooMany || tooLongForShort}>
-                {rendering ? `만드는 중… ${Math.round(progress * 100)}%` : "이 컷으로 영상 만들기"}
+                {rendering ? (renderStage ? `${renderStage}…` : `만드는 중… ${Math.round(progress * 100)}%`) : "이 컷으로 영상 만들기"}
               </button>
             </div>
             <p className="text-xs text-muted">영상은 선택한 형식의 화면(원본 비율이 다르면 배경을 흐리게 채움)으로 만들어지며, 조각 사이에는 아주 짧은 소리 페이드가 들어가 이음매 잡음을 줄입니다. 원본 해상도 그대로 컷만 하려면 위의 컷 목록 EDL을 편집 프로그램에서 쓰세요.</p>
@@ -272,6 +280,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
             <div className="flex flex-col items-start gap-2">
               <video className="max-h-[480px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${out.id}`} />
               <p className="text-xs text-muted">{sec(out.durationSec)} · {(out.bytes / 1024 / 1024).toFixed(1)}MB</p>
+              {renderNote && <p className="text-xs text-bad">{renderNote}</p>}
               <a className="btn-primary" href={`/api/render/file?id=${out.id}&download=1`}>mp4 다운로드</a>
             </div>
           )}

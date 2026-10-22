@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import AutoCut from "./AutoCut";
 import AutoEdit from "./AutoEdit";
+import AutoReframe from "./AutoReframe";
 import { CaptionStyleProvider } from "./captionStyleContext";
+import FramingPicker from "./FramingPicker";
+import { FramingProvider } from "./framingContext";
 import HealthCheck from "./HealthCheck";
 import Highlights from "./Highlights";
 import SourcePanel from "./SourcePanel";
@@ -12,12 +15,13 @@ import StylePicker from "./StylePicker";
 import { EMPTY_SOURCE, type SourceState } from "./source";
 import UrlPlan from "./UrlPlan";
 
-type Tool = "shorts" | "auto" | "cut" | "url";
+type Tool = "shorts" | "auto" | "cut" | "frame" | "url";
 
 const TOOLS: { id: Tool; title: string; blurb: string }[] = [
   { id: "shorts", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상 하나에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑고, 자막을 붙여 쇼츠로 만듭니다." },
   { id: "auto", title: "한 편 자동 편집", blurb: "영상 한 편의 컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다." },
   { id: "cut", title: "무음·군말 자동 컷", blurb: "말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 템포를 빠르게 합니다." },
+  { id: "frame", title: "자동 프레임 (가로 → 세로)", blurb: "가로 영상을 세로 쇼츠로 자를 때 사람을 따라 화면 위치를 자동으로 옮깁니다." },
   { id: "url", title: "영상 주소로 분석", blurb: "유튜브 주소만으로 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다(파일 없이도 가능)." },
 ];
 
@@ -32,6 +36,7 @@ export default function Editor() {
 
   return (
     <CaptionStyleProvider>
+    <FramingProvider>
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -47,9 +52,11 @@ export default function Editor() {
 
       <StylePicker title="2. 자막 스타일 (선택)" />
 
+      <FramingPicker title="2-2. 세로 화면 (선택)" />
+
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">3. 무엇을 할까요?</h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {TOOLS.map((t) => (
             <button
               key={t.id}
@@ -80,9 +87,11 @@ export default function Editor() {
         {tool === "shorts" && <Highlights topic="" source={source} />}
         {tool === "auto" && <AutoEdit key={layout} topic="" layout={layout} source={source} />}
         {tool === "cut" && <AutoCut source={source} />}
+        {tool === "frame" && <AutoReframe source={source} />}
         {tool === "url" && <UrlPlan topic="" source={source} />}
       </div>
     </main>
+    </FramingProvider>
     </CaptionStyleProvider>
   );
 }

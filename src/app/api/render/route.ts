@@ -21,6 +21,21 @@ const Options = z.object({
     .object({ preset: z.string(), position: z.string(), scale: z.number() })
     .optional()
     .transform((s) => (s ? normalizeStyle(s as Partial<CaptionStyle>) : undefined)),
+  // Vertical result from a wider video: follow the person. `auto` finds them here; `keyframes` is a path the page already worked out.
+  reframe: z
+    .union([
+      z.object({
+        auto: z.literal(true),
+        smooth: z.number().min(1).max(5).optional(),
+        target: z.enum(["person", "animal", "vehicle", "all"]).optional(),
+        zoom: z.union([z.literal("auto"), z.number().min(1).max(3)]).optional(),
+      }),
+      z.object({
+        keyframes: z.array(z.object({ t: z.number().min(0).max(14400), cx: z.number().min(0).max(1), cy: z.number().min(0).max(1).optional() })).min(1).max(60000),
+        zoom: z.number().min(1).max(3).optional(),
+      }),
+    ])
+    .optional(),
   // For files too large to upload: an absolute path on this computer. Only video files are read.
   sourcePath: z.string().max(500).optional(),
   rights: Rights,
@@ -44,7 +59,9 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { sourcePath, ...opts } = parsed.data;
+    const { sourcePath, reframe, ...rest } = parsed.data;
+    const opts = { ...rest, reframe: reframe && "keyframes" in reframe ? { keyframes: reframe.keyframes, zoom: reframe.zoom } : undefined };
+    const autoReframe = reframe && "auto" in reframe ? { smooth: reframe.smooth, target: reframe.target, zoom: reframe.zoom } : undefined;
 
     const id = randomBytes(8).toString("hex");
     const dir = path.join(rendersDir(), id);
@@ -56,7 +73,9 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    startRenderJob({ id, dir, input: src.input, opts, meta: { sourceName: src.sourceName, ...opts }, deleteInput: src.deleteInput });
+    const { reframe: _path, ...metaOpts } = opts; // the path itself is long and only useful to the render
+    void _path;
+    startRenderJob({ id, dir, input: src.input, opts, meta: { sourceName: src.sourceName, ...metaOpts, reframe: opts.reframe ? "path" : autoReframe ? "auto" : undefined }, deleteInput: src.deleteInput, autoReframe });
     return Response.json({ id }, { status: 202 });
   } catch (e) {
     return errorResponse(e);

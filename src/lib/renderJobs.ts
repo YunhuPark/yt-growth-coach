@@ -1,10 +1,21 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { withAutoReframe } from "./autoReframe";
+import type { Target } from "./reframe";
 import { renderVideo, type RenderOpts } from "./render";
-import { addMeta, tracked } from "./usage";
+import { addMeta, timed, tracked } from "./usage";
 
 export type RenderResult = { durationSec: number; bytes: number; layout: "short" | "long" };
-export type Job = { status: "running" | "done" | "error"; progress: number; error?: string; result?: RenderResult };
+export type Job = {
+  status: "running" | "done" | "error";
+  progress: number;
+  error?: string;
+  result?: RenderResult;
+  /** what it is doing now, when that is more than just encoding (finding the person to follow) */
+  stage?: string;
+  /** something the person should know about the result, such as tracking that found few people */
+  note?: string;
+};
 
 // Long renders take minutes, so they run in the background and the page polls for progress.
 // Next dev can reload modules, so the registry lives on globalThis.
@@ -21,6 +32,8 @@ export function startRenderJob(args: {
   meta: Record<string, unknown>;
   /** delete the input afterwards (true for uploads, never for a path the creator pointed us at) */
   deleteInput: boolean;
+  /** find who to follow in the parts that are used, and crop the vertical result around them */
+  autoReframe?: { smooth?: number; target?: Target; zoom?: number | "auto" };
 }) {
   const job: Job = { status: "running", progress: 0 };
   jobs.set(args.id, job);
@@ -29,7 +42,14 @@ export function startRenderJob(args: {
       const result = await tracked(
         "render",
         async () => {
-          const r = await renderVideo(args.input, args.dir, args.opts, (f) => {
+          let opts = args.opts;
+          if (args.autoReframe) {
+            const tracked = await timed("사람 찾기", () => withAutoReframe(args.input, args.dir, opts, { ...args.autoReframe, onStage: (s) => (job.stage = s) }));
+            opts = tracked.opts;
+            job.note = tracked.note;
+          }
+          job.stage = undefined;
+          const r = await renderVideo(args.input, args.dir, opts, (f) => {
             job.progress = f;
           });
           addMeta({ outputSec: r.durationSec, bytes: r.bytes });

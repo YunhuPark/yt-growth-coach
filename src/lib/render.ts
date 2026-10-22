@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { normalizeStyle, styledText, type CaptionStyle } from "./captionStyle";
+import { cropSizePx, cropX, cxAt, cyAt, panScript, type Keyframe } from "./reframe";
 
 export const MAX_SHORT_SEC = 180;
 export const MAX_LONG_SEC = 4 * 3600;
@@ -21,6 +22,15 @@ export type RenderOpts = {
   ending?: { text: string; seconds: number };
   /** how the hook and caption text look; the default is the plain boxed style */
   style?: CaptionStyle;
+  /**
+   * For a vertical result from a wider source: where the crop window sits over time (centre as a fraction of the width, at times
+   * in the source). Without it the whole picture is shown over a blurred copy of itself, as always.
+   */
+  reframe?: {
+    keyframes: Keyframe[];
+    /** 1 (default) = the window is as tall as the picture; above 1 it is that much smaller, so the subject fills more of the result */
+    zoom?: number;
+  };
 };
 
 type TextStyle = { size: number; border?: number; box?: number; y: string; wrap: number; spacing: number };
@@ -274,7 +284,35 @@ export async function renderVideo(
     pre = `${parts.join(";")};${labels}concat=n=${segs.length}:v=1:a=${info.hasAudio ? 1 : 0}[cv]${info.hasAudio ? "[ca]" : ""};`;
     vin = "cv";
   }
-  const graph = `${pre}${baseFilter(layout, opts.fit, info, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
+  // Following a person: a crop window as tall as the picture and 9:16 wide, moved by commands read from a file. It comes after the
+  // pieces are joined, so the commands are in the result's time and each piece is mapped back to where it came from in the source.
+  let frameInfo: { width?: number; height?: number } = info;
+  const win = info.width && info.height ? cropSizePx(info.width, info.height, opts.reframe?.zoom) : null;
+  if (opts.reframe?.keyframes.length && layout === "short" && info.width && info.height && win && (win.w < info.width * 0.98 || win.h < info.height * 0.98)) {
+    const { w: cropW, h: cropH } = win;
+    const toSource = segs
+      ? (() => {
+          const starts: number[] = [];
+          let acc = 0;
+          for (const x of segs) {
+            starts.push(acc);
+            acc += x.end - x.start;
+          }
+          return (t: number) => {
+            let i = starts.length - 1;
+            while (i > 0 && starts[i] > t) i--;
+            return segs[i].start + Math.min(t - starts[i], segs[i].end - segs[i].start);
+          };
+        })()
+      : (t: number) => t + start;
+    await fs.writeFile(path.join(dir, "pan.txt"), panScript({ keys: opts.reframe.keyframes, srcW: info.width, cropW, srcH: info.height, cropH, outSec: outDur, toSource }), "utf8");
+    const x0 = cropX(cxAt(opts.reframe.keyframes, toSource(0)), info.width, cropW);
+    const y0 = cropH < info.height ? cropX(cyAt(opts.reframe.keyframes, toSource(0)), info.height, cropH) : 0;
+    pre += `[${vin}]sendcmd=f=pan.txt,crop@pan=w=${cropW}:h=${cropH}:x=${x0}:y=${y0}[rf];`;
+    vin = "rf";
+    frameInfo = { width: cropW, height: cropH }; // already the frame's shape, so no blurred backdrop is needed
+  }
+  const graph = `${pre}${baseFilter(layout, opts.fit, frameInfo, vin)};[v0]${chain.length ? chain.join(",") : "null"}[vout]`;
 
   // The graph goes through a file: with a few hundred cuts it is longer than a command line may be (Windows allows ~32 KB).
   await fs.writeFile(path.join(dir, "graph.txt"), graph, "utf8");

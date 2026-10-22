@@ -6,6 +6,10 @@ import { loadClipProfile } from "./channelProfile";
 import type { ClipProfile } from "./clipProfile";
 import { findHighlights, type Highlight } from "./highlights";
 import type { Seg, Word } from "./cutPlan";
+import type { Look } from "./reframe";
+import { probe } from "./render";
+import { trackSubject } from "./subjectTrack";
+import type { Detector } from "./subjectDetector";
 import { transcribeVideo, transcribeWords, type Transcriber } from "./transcribe";
 import { addMeta, timed, tracked } from "./usage";
 import { fetchSignals, momentsHint } from "./urlPlan";
@@ -25,6 +29,19 @@ export type AutoJob = {
   /** the channel's length range for Shorts, when there is enough history; shown beside the candidates */
   lengthRange?: { min: number; max: number } | null;
   duration?: number;
+  /** who and what was found over the video, by an auto-reframe run; the page picks what to follow and smooths it into a camera path */
+  reframe?: ReframeAnalysis;
+  /** how far along the picture-by-picture search is */
+  progress?: number;
+};
+
+/** What a person search found. The camera path is worked out on the page so smoothness can change without a new run. */
+export type ReframeAnalysis = {
+  duration: number;
+  width: number;
+  height: number;
+  looks: Look[];
+  thumbs: { t: number; dataUrl: string }[];
 };
 
 /** What an auto-cut analysis found. Which of it becomes a cut is decided on the page, so settings can change without a new run. */
@@ -199,6 +216,54 @@ export function startAutoCut(args: {
           wordsTruncated,
         };
         job.duration = found.duration;
+      });
+      job.status = "done";
+      job.stage = "완료";
+    } catch (e) {
+      job.status = "error";
+      job.error = e instanceof Error ? e.message : "분석에 실패했습니다.";
+    } finally {
+      if (args.deleteInput) await fs.rm(args.input, { force: true });
+      await fs.rm(args.dir, { recursive: true, force: true });
+    }
+  })();
+}
+
+/**
+ * Looks through a video for the person to follow when it is cut to a vertical frame. Stills are taken every so often and a small
+ * model on this computer finds people in them; nothing is sent anywhere.
+ */
+export function startAutoReframe(args: {
+  id: string;
+  dir: string;
+  input: string;
+  deleteInput: boolean;
+  detector?: Detector;
+}) {
+  const job: AutoJob = { status: "running", stage: "영상 확인 중", progress: 0 };
+  jobs.set(args.id, job);
+  void (async () => {
+    try {
+      await tracked("autoreframe", async () => {
+        await fs.mkdir(args.dir, { recursive: true });
+        const info = await probe(args.input, args.dir);
+        if (!info.width || !info.height) throw new Error("영상 크기를 읽지 못했습니다.");
+        if (info.width <= info.height) throw new Error("이미 세로 영상이라 따로 자를 필요가 없습니다.");
+        addMeta({ inputSec: Math.round(info.duration) });
+        const track = await timed("사람 찾기", () =>
+          trackSubject(args.input, args.dir, {
+            duration: info.duration,
+            width: info.width!,
+            height: info.height!,
+            detector: args.detector,
+            thumbs: 12,
+            onStage: (s) => (job.stage = s),
+            onProgress: (d, t) => (job.progress = t ? d / t : 0),
+          }),
+        );
+        addMeta({ looks: track.looks.length });
+        job.reframe = { duration: info.duration, width: info.width, height: info.height, looks: track.looks, thumbs: track.thumbs };
+        job.duration = info.duration;
       });
       job.status = "done";
       job.stage = "완료";

@@ -10,6 +10,7 @@ const NAME: Record<HealthItem["id"], string> = {
   anthropic: "AI 키 (Anthropic)",
   youtubeKey: "YouTube API 키",
   speechModel: "음성 인식 모델",
+  personModel: "대상 인식 모델 (자동 프레임)",
   google: "Google 계정 연결",
 };
 

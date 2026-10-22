@@ -6,7 +6,7 @@ import { loadTokens } from "./store";
 // "Is everything this app needs in place?", answered as yes/no per item. It never returns a secret, only whether one is set.
 
 export type HealthItem = {
-  id: "ffmpeg" | "font" | "anthropic" | "youtubeKey" | "speechModel" | "google";
+  id: "ffmpeg" | "font" | "anthropic" | "youtubeKey" | "speechModel" | "personModel" | "google";
   ok: boolean;
   /** without this the editing tools cannot run */
   required: boolean;
@@ -23,14 +23,17 @@ const exists = (p: string) =>
 export const speechModelFile = () =>
   path.join(process.cwd(), ".data", "models", "Xenova", "whisper-small", "onnx", "encoder_model_quantized.onnx");
 
+export const personModelFile = () => path.join(process.cwd(), ".data", "models", "Xenova", "yolos-tiny", "onnx", "model_quantized.onnx");
+
 export async function checkHealth(): Promise<HealthItem[]> {
-  const [ffmpeg, font, speech, tokens] = await Promise.all([
+  const [ffmpeg, font, speech, person, tokens] = await Promise.all([
     exists(FFMPEG),
     findFont().then(
       () => true,
       () => false,
     ),
     exists(speechModelFile()),
+    exists(personModelFile()),
     loadTokens().catch(() => null),
   ]);
   return [
@@ -53,6 +56,12 @@ export async function checkHealth(): Promise<HealthItem[]> {
       ok: speech,
       required: false,
       fix: "음성 인식 모델이 아직 없습니다. 음성 인식을 처음 켤 때 약 240MB를 자동으로 내려받아 저장합니다.",
+    },
+    {
+      id: "personModel",
+      ok: person,
+      required: false,
+      fix: "대상 인식 모델이 아직 없습니다. 자동 프레임을 처음 쓸 때 약 9MB를 자동으로 내려받아 저장합니다.",
     },
     {
       id: "google",

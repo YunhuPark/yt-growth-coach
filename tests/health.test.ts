@@ -31,12 +31,13 @@ after(() => {
 describe("checkHealth", () => {
   it("reports each item with whether it is required, and says what to do when one is missing", async () => {
     const items = await health.checkHealth();
-    assert.deepEqual(items.map((i) => i.id), ["ffmpeg", "font", "anthropic", "youtubeKey", "speechModel", "google"]);
+    assert.deepEqual(items.map((i) => i.id), ["ffmpeg", "font", "anthropic", "youtubeKey", "speechModel", "personModel", "google"]);
     const by = Object.fromEntries(items.map((i) => [i.id, i]));
     assert.equal(by.anthropic.required, true);
     assert.equal(by.google.required, false, "the editing tools do not need a Google sign-in");
     assert.equal(by.youtubeKey.required, false);
     assert.equal(by.speechModel.required, false);
+    assert.equal(by.personModel.required, false);
     for (const i of items) assert.ok(i.fix.length > 10, `${i.id} has guidance`);
   });
 

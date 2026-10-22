@@ -5,12 +5,15 @@ import type { EditPlan } from "@/lib/autoEdit";
 import { formatClock, withChapterCards } from "@/lib/chapters";
 import { planCues } from "@/lib/exporters";
 import { useCaptionStyle } from "./captionStyleContext";
+import { useReframeOption } from "./framingContext";
 import ExportMenu from "./ExportMenu";
 import { api } from "./shared";
 
 type RenderStatus = {
   status: "running" | "done" | "error";
   progress: number;
+  stage?: string;
+  note?: string;
   error?: string;
   result?: { durationSec: number; bytes: number; layout: "short" | "long" };
 };
@@ -38,8 +41,11 @@ export default function PlanPanel({
   clipName?: string;
 }) {
   const { style } = useCaptionStyle();
+  const follow = useReframeOption("short");
   const [rendering, setRendering] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [out, setOut] = useState<{ id: string; durationSec: number; bytes: number } | null>(null);
 
@@ -49,6 +55,8 @@ export default function PlanPanel({
   const render = async () => {
     setError(null);
     setOut(null);
+    setNote(null);
+    setStage(null);
     setProgress(0);
     setRendering(true);
     try {
@@ -62,6 +70,7 @@ export default function PlanPanel({
           captions,
           ending: plan.ending ?? undefined,
           style,
+          reframe: layout === "short" ? follow : undefined,
         }),
       });
       const json = await res.json();
@@ -70,9 +79,11 @@ export default function PlanPanel({
         await wait(1000);
         const st = await api<RenderStatus>(`/api/render/status?id=${json.id}`);
         setProgress(st.progress);
+        setStage(st.stage ?? null);
         if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
         if (st.status === "done" && st.result) {
           setOut({ id: json.id, ...st.result });
+          setNote(st.note ?? null);
           break;
         }
       }
@@ -157,7 +168,7 @@ export default function PlanPanel({
 
       <div className="flex flex-col gap-2">
         <button className="btn-primary w-fit" onClick={render} disabled={rendering || disabled}>
-          {rendering ? `렌더링 중… ${Math.round(progress * 100)}%` : "이 계획으로 영상 만들기"}
+          {rendering ? (stage ? `${stage}…` : `렌더링 중… ${Math.round(progress * 100)}%`) : "이 계획으로 영상 만들기"}
         </button>
         {rendering && (
           <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(progress * 100)}>
@@ -170,6 +181,7 @@ export default function PlanPanel({
         <div className="flex flex-col items-start gap-2">
           <video className="max-h-[560px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${out.id}`} />
           <p className="text-xs text-muted">{out.durationSec}초 · {(out.bytes / 1024 / 1024).toFixed(1)}MB</p>
+          {note && <p className="text-xs text-bad">{note}</p>}
           <a className="btn-primary" href={`/api/render/file?id=${out.id}&download=1`}>mp4 다운로드</a>
         </div>
       )}
