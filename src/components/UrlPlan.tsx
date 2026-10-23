@@ -8,6 +8,7 @@ import BriefRender from "./BriefRender";
 import PlanPanel from "./PlanPanel";
 import { api, fmt } from "./shared";
 import { sourceName, sourceReady, type SourceState } from "./source";
+import ToolIntro from "./ToolIntro";
 
 const FIT_LABEL = { within: "내 채널 잘된 길이", shorter: "내 채널 잘된 쇼츠보다 짧음", longer: "내 채널 잘된 쇼츠보다 김" } as const;
 const copy = (t: string) => navigator.clipboard?.writeText(t).catch(() => {});
@@ -75,15 +76,17 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
 
   return (
     <section className="card flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold">영상 주소로 분석 · 주제 · 제목 · 쇼츠 · 롱폼 (파일 없이)</h2>
-        <p className="text-xs text-muted">
-          유튜브 영상 주소를 붙이면 AI가 영상이 무엇에 관한 것인지 정리하고, 내 채널에서 쓸 <b>주제·제목</b>, 쇼츠로 잘라 올리기 좋은 <b>구간</b>(편집 지시서 포함),
+      <ToolIntro
+        title="영상 주소로 분석"
+        summary="유튜브 주소만 붙이면 영상 요약과 내 채널에 쓸 주제·제목·쇼츠 구간·롱폼 구성안을 만들어 줍니다. 영상 파일은 필요 없습니다."
+        steps={["유튜브 영상 주소를 붙입니다", "분석 버튼을 누릅니다", "제안된 주제·제목·구간을 확인하고 활용합니다"]}
+        uses="ai"
+      >
+        유튜브 영상 주소를 붙이면 AI가 영상이 무엇에 관한 것인지 정리하고, 내 채널에서 쓸 <b>주제·제목</b>, 쇼츠로 잘라 올리기 좋은 <b>구간</b>(편집 지시서 포함),
           <b>롱폼 구성안</b>(챕터 포함)을 만들어 줍니다. 영상을 내려받거나 복사하지 않습니다. <b>AI는 영상을 직접 보거나 듣지 못하고</b>, 공개된 제목·설명·챕터·댓글과
           YouTube가 제공하는 미리보기 이미지 4장(대표 이미지와 영상 중간 장면 3장)만 근거로 합니다. 그래서 파일 분석(D)보다 정확도가 낮고, 시간을 짚은 댓글이나 챕터가
           없으면 쇼츠 구간과 롱폼은 만들지 않습니다. 원본을 쓸 권리는 직접 확인하세요.
-        </p>
-      </div>
+      </ToolIntro>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_16rem_8rem]">
         <label className="field">영상 주소

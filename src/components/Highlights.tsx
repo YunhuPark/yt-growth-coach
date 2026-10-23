@@ -5,6 +5,7 @@ import type { Highlight } from "@/lib/highlights";
 import { editedCaptions, toCaps, type Cap } from "@/lib/captionEdit";
 import type { EditPlan } from "@/lib/autoEdit";
 import { planCues } from "@/lib/exporters";
+import ToolIntro from "./ToolIntro";
 import { useCaptionStyle } from "./captionStyleContext";
 import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
@@ -173,13 +174,15 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
 
   return (
     <section className="card flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold">긴 영상에서 쇼츠 뽑기</h2>
-        <p className="text-xs text-muted">
-          길이가 긴 영상 하나를 넣으면 AI가 쇼츠로 잘라 올리기 좋은 구간을 점수와 이유까지 붙여 후보로 뽑습니다. 마음에 드는 후보를 고르면 훅 자막과(음성 인식을
+      <ToolIntro
+        title="긴 영상에서 쇼츠 뽑기"
+        summary="긴 영상 하나에서 쇼츠로 올리기 좋은 구간을 AI가 점수와 이유까지 붙여 골라 줍니다."
+        steps={["‘쇼츠 구간 찾기’를 누릅니다 (몇 분 걸립니다)","마음에 드는 후보의 훅·자막 문구를 다듬습니다","‘쇼츠 만들기’로 mp4를 만들어 내려받습니다"]}
+        uses="ai"
+      >
+        길이가 긴 영상 하나를 넣으면 AI가 쇼츠로 잘라 올리기 좋은 구간을 점수와 이유까지 붙여 후보로 뽑습니다. 마음에 드는 후보를 고르면 훅 자막과(음성 인식을
           켰다면) 대사 자막까지 붙여 쇼츠로 만들어 줍니다. 영상은 위 “1. 편집할 영상”에서 고른 것을 씁니다.
-        </p>
-      </div>
+      </ToolIntro>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="field">원본 영상 주소 (선택 · 시청자가 댓글로 짚은 인기 구간을 후보에 반영)

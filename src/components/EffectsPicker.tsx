@@ -4,12 +4,13 @@ import { CUT_SOUNDS, TRANSITIONS, type CutSound, type TransitionKind } from "@/l
 import { useEffects } from "./effectsContext";
 
 /** Transitions and sound effects for the cuts of the videos made on this page. */
-export default function EffectsPicker({ title = "전환·효과음 (선택)" }: { title?: string }) {
+export default function EffectsPicker({ title = "전환·효과음 (선택)", bare = false }: { title?: string; bare?: boolean }) {
   const { effects, setEffects } = useEffects();
   const set = (patch: Partial<typeof effects>) => setEffects({ ...effects, ...patch });
   const any = effects.transition !== "none" || effects.cutSound !== "none" || effects.hookSound || effects.endingSound;
   return (
-    <section className="card flex flex-col gap-3">
+    <section className={bare ? "flex flex-col gap-3" : "card flex flex-col gap-3"}>
+      {!bare && (
       <div>
         <h2 className="font-semibold">{title}</h2>
         <p className="text-xs text-muted">
@@ -17,6 +18,7 @@ export default function EffectsPicker({ title = "전환·효과음 (선택)" }: 
           자막 타이밍은 바뀌지 않습니다.
         </p>
       </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="field text-xs">컷에서의 화면 전환
           <select className="input" value={effects.transition} onChange={(e) => set({ transition: e.target.value as TransitionKind })}>

@@ -24,6 +24,7 @@ import {
 import { useCaptionStyle } from "./captionStyleContext";
 import { api } from "./shared";
 import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
+import ToolIntro from "./ToolIntro";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; progress?: number; error?: string; reframe?: ReframeAnalysis };
 type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
@@ -185,13 +186,15 @@ export default function AutoReframe({ source }: { source: SourceState }) {
 
   return (
     <section className="card flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold">자동 프레임 (가로 → 세로, 따라가며 자르기)</h2>
-        <p className="text-xs text-muted">
-          가로 영상을 세로(9:16)로 자를 때 사람(또는 동물·탈것)이 화면 밖으로 잘리지 않게, 자르는 위치를 자동으로 옮깁니다. 찾기는 이 컴퓨터에서만 하고(영상이 밖으로 나가지 않음),
+      <ToolIntro
+        title="가로 → 세로 자동 프레임"
+        summary="가로 영상을 세로(9:16)로 자를 때 사람·동물·탈것이 화면 밖으로 잘리지 않게 자르는 위치를 자동으로 옮깁니다."
+        steps={["‘찾기 시작’을 누릅니다", "따라갈 대상·확대·카메라 움직임을 조절합니다", "구간을 정하고 ‘세로 쇼츠로 만들기’를 누릅니다"]}
+        uses="local"
+      >
+        가로 영상을 세로(9:16)로 자를 때 사람(또는 동물·탈것)이 화면 밖으로 잘리지 않게, 자르는 위치를 자동으로 옮깁니다. 찾기는 이 컴퓨터에서만 하고(영상이 밖으로 나가지 않음),
           처음 한 번은 인식 모델(약 9MB)을 내려받습니다. 누구를 따라갈지, 얼마나 확대할지, 카메라가 얼마나 빨리 움직일지는 아래에서 눈으로 보고 조절할 수 있습니다.
-        </p>
-      </div>
+      </ToolIntro>
 
       {!hasSource(source) || !sourceReady(source) ? (
         <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요.</p>

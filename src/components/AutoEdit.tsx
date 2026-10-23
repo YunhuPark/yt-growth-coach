@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { EditPlan } from "@/lib/autoEdit";
 import PlanPanel from "./PlanPanel";
+import ToolIntro from "./ToolIntro";
 import { api } from "./shared";
 import { sourceName, sourceReady, type SourceState } from "./source";
 
@@ -62,14 +63,16 @@ export default function AutoEdit({ topic: initialTopic, layout, source }: { topi
 
   return (
     <section className="card flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold">AI 자동 편집 · 컷 · 자막 · 제목</h2>
-        <p className="text-xs text-muted">
-          영상 파일을 AI가 훑어보고(대표 장면, 장면 전환, 무음 구간, 소리 크기) 버릴 부분을 자르고, 훅·구간 자막과 제목 후보 3개를 제안합니다. 먼저 계획을
+      <ToolIntro
+        title="한 편 자동 편집"
+        summary="영상 한 편의 컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤에 영상으로 만듭니다."
+        steps={["주제와 목표 길이를 적습니다","‘AI 편집 계획 만들기’를 누릅니다","계획을 확인하고 고친 뒤 영상으로 만듭니다"]}
+        uses="ai"
+      >
+        영상 파일을 AI가 훑어보고(대표 장면, 장면 전환, 무음 구간, 소리 크기) 버릴 부분을 자르고, 훅·구간 자막과 제목 후보 3개를 제안합니다. 먼저 계획을
           보여 주고, 확인한 뒤에 영상을 만듭니다. 음성 인식을 켜지 않으면 <b>대사는 알아듣지 못하고</b> 자막은 보이는 장면 기준의 문구가 됩니다. 이미지 몇 장(음성
           인식을 켜면 인식된 대사 텍스트도)이 분석을 위해 Anthropic API로 전송됩니다.
-        </p>
-      </div>
+      </ToolIntro>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="field">주제 / 만들려는 영상 (AI에게 전달)

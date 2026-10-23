@@ -11,6 +11,7 @@ import ExportMenu from "./ExportMenu";
 import RangePreview from "./RangePreview";
 import { api } from "./shared";
 import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
+import ToolIntro from "./ToolIntro";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; error?: string; cut?: CutAnalysis };
 type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
@@ -140,13 +141,15 @@ export default function AutoCut({ source }: { source: SourceState }) {
 
   return (
     <section className="card flex flex-col gap-4">
-      <div>
-        <h2 className="font-semibold">무음·군말 자동 컷</h2>
-        <p className="text-xs text-muted">
-          말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 내 템포를 빠르게 합니다. 소리 분석은 이 컴퓨터에서만 하고(AI 서비스로 보내지 않음), 무엇을 자를지는
+      <ToolIntro
+        title="무음·군말 자르기"
+        summary="말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 템포를 빠르게 합니다."
+        steps={["‘소리 분석하기’를 누릅니다", "자를 곳 목록에서 하나씩 들어 보고 체크를 조정합니다", "‘이 컷으로 영상 만들기’ 또는 컷 목록으로 내보냅니다"]}
+        uses="local"
+      >
+        말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 내 템포를 빠르게 합니다. 소리 분석은 이 컴퓨터에서만 하고(AI 서비스로 보내지 않음), 무엇을 자를지는
           아래에서 하나씩 듣고 켜고 끌 수 있습니다.
-        </p>
-      </div>
+      </ToolIntro>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3">

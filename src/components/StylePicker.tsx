@@ -7,13 +7,14 @@ import { useCaptionStyle } from "./captionStyleContext";
  * Choose how the hook and captions look. Each choice is shown as a picture drawn the same way the video is, so what is
  * picked here is what comes out.
  */
-export default function StylePicker({ title = "자막 스타일" }: { title?: string }) {
+export default function StylePicker({ title = "자막 스타일", bare = false }: { title?: string; bare?: boolean }) {
   const { style, setStyle } = useCaptionStyle();
   const pic = (preset: string) =>
     `/api/stylepreview?layout=short&preset=${preset}&position=${style.position}&scale=${style.scale}`;
 
   return (
-    <section className="card flex flex-col gap-3">
+    <section className={bare ? "flex flex-col gap-3" : "card flex flex-col gap-3"}>
+      {!bare && (
       <div>
         <h2 className="font-semibold">{title}</h2>
         <p className="text-xs text-muted">
@@ -21,6 +22,7 @@ export default function StylePicker({ title = "자막 스타일" }: { title?: st
           스타일입니다.
         </p>
       </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {PRESETS.map((p) => (

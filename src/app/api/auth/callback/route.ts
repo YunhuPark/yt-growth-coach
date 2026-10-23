@@ -11,16 +11,16 @@ export async function GET(req: NextRequest) {
   jar.delete("oauth_state");
 
   const err = searchParams.get("error");
-  if (err) return Response.redirect(`${origin}/?authError=${encodeURIComponent(err)}`, 302);
+  if (err) return Response.redirect(`${origin}/channel?authError=${encodeURIComponent(err)}`, 302);
 
   const code = searchParams.get("code");
   if (!code || !expected || searchParams.get("state") !== expected) {
-    return Response.redirect(`${origin}/?authError=state_mismatch`, 302);
+    return Response.redirect(`${origin}/channel?authError=state_mismatch`, 302);
   }
   try {
     await exchangeCode(code);
     clearCache();
-    return Response.redirect(`${origin}/`, 302);
+    return Response.redirect(`${origin}/channel`, 302);
   } catch (e) {
     return errorResponse(e);
   }

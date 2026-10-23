@@ -4,11 +4,11 @@ import { TARGETS, type Target } from "@/lib/reframe";
 import { useFraming } from "./framingContext";
 
 /** Whether Shorts made from a wider video follow the person instead of showing the whole picture over a blurred copy. */
-export default function FramingPicker({ title = "세로 화면 (선택)" }: { title?: string }) {
+export default function FramingPicker({ title = "세로 화면 (선택)", bare = false }: { title?: string; bare?: boolean }) {
   const { follow, smooth, target, zoom, setFollow, setSmooth, setTarget, setZoom } = useFraming();
   return (
-    <section className="card flex flex-col gap-2">
-      <h2 className="font-semibold">{title}</h2>
+    <section className={bare ? "flex flex-col gap-3" : "card flex flex-col gap-2"}>
+      {!bare && <h2 className="font-semibold">{title}</h2>}
       <label className="flex items-start gap-2 text-sm">
         <input className="mt-1" type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
         <span>

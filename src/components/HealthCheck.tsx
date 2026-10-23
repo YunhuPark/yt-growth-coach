@@ -14,7 +14,10 @@ const NAME: Record<HealthItem["id"], string> = {
   google: "Google 계정 연결",
 };
 
-/** What is in place and what is missing, with what to do about each. Required items that are missing are shown first and loudly. */
+/**
+ * What is in place and what is missing, as a small badge that opens the list. Something required that is missing is also shown
+ * as a plain warning, because the tools cannot work without it.
+ */
 export default function HealthCheck() {
   const [items, setItems] = useState<HealthItem[] | null>(null);
 
@@ -24,32 +27,52 @@ export default function HealthCheck() {
 
   if (!items || items.length === 0) return null;
   const blocking = items.filter((i) => i.required && !i.ok);
-  const optional = items.filter((i) => !i.required && !i.ok);
+  const done = items.filter((i) => i.ok).length;
 
   return (
-    <section className="flex flex-col gap-2">
+    <div className="relative">
+      <details className="group">
+        <summary
+          className={`chip cursor-pointer list-none select-none px-3 py-1 ${blocking.length ? "bg-bad/15 text-bad" : "bg-good/15 text-good"}`}
+          aria-label="준비 상태 보기"
+        >
+          <span aria-hidden>{blocking.length ? "●" : "✓"}</span> 준비 상태 {done}/{items.length}
+        </summary>
+        <div className="card absolute right-0 z-20 mt-2 w-[min(22rem,90vw)] shadow-lg">
+          <p className="mb-2 text-sm font-semibold">이 도구가 쓰는 것들</p>
+          <ul className="space-y-2">
+            {items.map((i) => (
+              <li key={i.id} className="flex gap-2 text-xs">
+                <span className={`w-4 shrink-0 text-center ${i.ok ? "text-good" : i.required ? "text-bad" : "text-muted"}`}>{i.ok ? "✓" : i.required ? "✕" : "–"}</span>
+                <span>
+                  <b>{NAME[i.id]}</b>
+                  {!i.required && <span className="text-muted"> (선택)</span>}
+                  {!i.ok && <span className="block text-muted">{i.fix}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/** The warnings for what is required but missing, to show where they cannot be missed. Nothing when all is in place. */
+export function HealthWarnings() {
+  const [items, setItems] = useState<HealthItem[]>([]);
+  useEffect(() => {
+    api<HealthItem[]>("/api/health").then(setItems).catch(() => setItems([]));
+  }, []);
+  const blocking = items.filter((i) => i.required && !i.ok);
+  if (!blocking.length) return null;
+  return (
+    <div className="flex flex-col gap-2">
       {blocking.map((i) => (
-        <p key={i.id} className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+        <p key={i.id} className="rounded-lg border border-bad/40 bg-bad/10 px-4 py-3 text-sm text-bad">
           <b>{NAME[i.id]}</b> — {i.fix}
         </p>
       ))}
-      <details className="rounded-md border border-line px-3 py-2 text-sm" open={blocking.length > 0}>
-        <summary className="cursor-pointer text-xs text-muted">
-          준비 상태 · {items.filter((i) => i.ok).length}/{items.length} 완료{optional.length ? ` · 선택 항목 ${optional.length}개 미설정` : ""}
-        </summary>
-        <ul className="mt-2 space-y-1.5">
-          {items.map((i) => (
-            <li key={i.id} className="flex gap-2 text-xs">
-              <span className={`w-4 shrink-0 text-center ${i.ok ? "text-good" : i.required ? "text-bad" : "text-muted"}`}>{i.ok ? "✓" : i.required ? "✕" : "–"}</span>
-              <span>
-                <b>{NAME[i.id]}</b>
-                {!i.required && <span className="text-muted"> (선택)</span>}
-                {!i.ok && <span className="block text-muted">{i.fix}</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </details>
-    </section>
+    </div>
   );
 }
