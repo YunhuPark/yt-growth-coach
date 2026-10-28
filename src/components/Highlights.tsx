@@ -175,6 +175,7 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
   return (
     <section className="card flex flex-col gap-4">
       <ToolIntro
+        icon="clapper"
         title="긴 영상에서 쇼츠 뽑기"
         summary="긴 영상 하나에서 쇼츠로 올리기 좋은 구간을 AI가 점수와 이유까지 붙여 골라 줍니다."
         steps={["‘쇼츠 구간 찾기’를 누릅니다 (몇 분 걸립니다)","마음에 드는 후보의 훅·자막 문구를 다듬습니다","‘쇼츠 만들기’로 mp4를 만들어 내려받습니다"]}

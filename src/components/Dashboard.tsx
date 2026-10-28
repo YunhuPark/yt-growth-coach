@@ -155,7 +155,7 @@ export default function Dashboard() {
 
 function Shell({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6">
+    <main id="main" className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6">
       {header ?? <h1 className="text-2xl font-black tracking-tight">채널 분석 · 추천 · 성과 추적</h1>}
       {children}
     </main>

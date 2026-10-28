@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "./Icon";
 import { BASIS, type Basis } from "./shared";
 import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
 
@@ -20,7 +21,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
   if (ready && !editing) {
     return (
       <section id="step-source" className="card flex flex-wrap items-center gap-3 !py-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-good/15 text-sm font-bold text-good" aria-hidden>✓</span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-good/15 text-good" aria-hidden><Icon name="check" size={16} /></span>
         <div className="min-w-0">
           <p className="truncate font-semibold">{sourceName(source)}</p>
           <p className="text-xs text-muted">{basisLabel} · 영상은 이 컴퓨터에서만 처리됩니다</p>
@@ -40,7 +41,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       )}
 
       <label
-        className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors ${dragging ? "border-accent bg-accent/5" : "border-line hover:border-accent/60"}`}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border-2 border-dashed px-4 py-8 text-center transition-colors ${dragging ? "border-foreground bg-foreground/5" : "border-line hover:border-foreground/50"}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -53,7 +54,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
           if (f) set({ file: f });
         }}
       >
-        <span className="text-3xl" aria-hidden>🎞️</span>
+        <Icon name="film" size={32} className="text-muted" />
         {source.file ? (
           <>
             <span className="font-semibold">{source.file.name}</span>
@@ -86,7 +87,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
 
       <fieldset className="flex flex-col gap-3 rounded-xl border border-line p-4">
         <legend className="px-1 text-sm font-semibold">이 영상을 써도 되나요? (필수)</legend>
-        <select className="input" value={source.basis} onChange={(e) => set({ basis: e.target.value as Basis })}>
+        <select className="input" aria-label="이 영상의 권리 관계" value={source.basis} onChange={(e) => set({ basis: e.target.value as Basis })}>
           <option value="">이 영상의 권리 관계를 선택하세요</option>
           {BASIS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
         </select>
@@ -100,7 +101,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`chip ${ready ? "bg-good/15 text-good" : ""}`}>
+        <span className={ready ? "chip-local" : "chip"}>
           {ready ? "준비됨" : hasSource(source) ? "권리 확인을 마치면 시작할 수 있어요" : "영상을 골라 주세요"}
         </span>
         {ready && <button className="btn-primary" onClick={() => setEditing(false)}>확인</button>}

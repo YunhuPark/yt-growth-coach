@@ -10,16 +10,19 @@ const LINKS: { href: string; label: string; id: "edit" | "channel" }[] = [
 /** The bar at the top of every page: the brand on the left, where to go in the middle, whatever the page adds on the right. */
 export default function SiteHeader({ active, children }: { active?: "edit" | "channel"; children?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-background/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-line bg-background/90 backdrop-blur">
+      <a href="#main" className="sr-only rounded-lg bg-accent-strong px-4 py-2 text-sm font-semibold text-on-accent focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50">
+        본문으로 건너뛰기
+      </a>
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
         <Brand />
-        <nav className="ml-2 hidden items-center gap-1 sm:flex" aria-label="주요 메뉴">
+        <nav className="hidden items-center gap-5 sm:flex" aria-label="주요 메뉴">
           {LINKS.map((l) => (
             <Link
               key={l.id}
               href={l.href}
               aria-current={active === l.id ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${active === l.id ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"}`}
+              className={`border-b-2 py-1 text-sm font-medium ${active === l.id ? "border-foreground text-foreground" : "border-transparent text-muted hover:text-foreground"}`}
             >
               {l.label}
             </Link>

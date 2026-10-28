@@ -142,6 +142,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
   return (
     <section className="card flex flex-col gap-4">
       <ToolIntro
+        icon="scissors"
         title="무음·군말 자르기"
         summary="말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 템포를 빠르게 합니다."
         steps={["‘소리 분석하기’를 누릅니다", "자를 곳 목록에서 하나씩 들어 보고 체크를 조정합니다", "‘이 컷으로 영상 만들기’ 또는 컷 목록으로 내보냅니다"]}

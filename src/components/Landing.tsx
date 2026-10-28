@@ -1,94 +1,129 @@
+import Image from "next/image";
 import Link from "next/link";
 import Brand, { BRAND } from "./Brand";
+import Icon, { type IconName } from "./Icon";
 import SiteHeader from "./SiteHeader";
 
-const FEATURES: { icon: string; title: string; text: string; uses: "ai" | "local" }[] = [
-  { icon: "🎬", title: "쇼츠 구간 뽑기", text: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 이유까지 붙여 골라 줍니다.", uses: "ai" },
-  { icon: "✨", title: "한 편 자동 편집", text: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤에 영상으로 만들어 줍니다.", uses: "ai" },
-  { icon: "✂️", title: "무음·군말 자르기", text: "말이 끊긴 빈 구간과 “음…”, “어…”를 찾아 하나씩 들어 보고 잘라 냅니다.", uses: "local" },
-  { icon: "📱", title: "자동 프레임", text: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local" },
-  { icon: "🎚️", title: "전환·효과음", text: "컷마다 번쩍임·줌 펀치와 효과음을 자동으로 넣습니다. 자막 타이밍은 그대로.", uses: "local" },
-  { icon: "🔗", title: "주소로 분석", text: "유튜브 주소만 붙이면 요약과 주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다.", uses: "ai" },
+const FEATURES: { icon: IconName; title: string; text: string; uses: "ai" | "local" }[] = [
+  { icon: "clapper", title: "쇼츠 구간 뽑기", text: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 이유까지 붙여 골라 줍니다.", uses: "ai" },
+  { icon: "timeline", title: "한 편 자동 편집", text: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤에 영상으로 만들어 줍니다.", uses: "ai" },
+  { icon: "scissors", title: "무음·군말 자르기", text: "말이 끊긴 빈 구간과 “음…”, “어…”를 찾아 하나씩 들어 보고 잘라 냅니다.", uses: "local" },
+  { icon: "frame", title: "자동 프레임", text: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local" },
+  { icon: "wave", title: "전환·효과음", text: "컷마다 번쩍임·줌 펀치와 효과음을 자동으로 넣습니다. 자막 타이밍은 그대로입니다.", uses: "local" },
+  { icon: "link", title: "주소로 분석", text: "유튜브 주소만 붙이면 요약과 주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다.", uses: "ai" },
 ];
 
-const HOW: { n: string; title: string; text: string }[] = [
-  { n: "1", title: "하고 싶은 걸 고르세요", text: "쇼츠 뽑기, 자동 편집, 무음 컷, 세로 변환 중 하나를 고릅니다." },
-  { n: "2", title: "영상을 끌어다 놓으세요", text: "파일을 올리고 쓸 수 있는 영상인지 확인에 체크합니다." },
-  { n: "3", title: "확인하고 내려받으세요", text: "AI의 제안을 보고 고친 뒤 mp4로 만듭니다. 자막은 SRT로도 받을 수 있어요." },
+const HOW: { title: string; text: string }[] = [
+  { title: "하고 싶은 걸 고릅니다", text: "쇼츠 뽑기, 자동 편집, 무음 컷, 세로 변환 중 하나를 고릅니다." },
+  { title: "영상을 끌어다 놓습니다", text: "파일을 올리고, 쓸 수 있는 영상인지 확인에 체크합니다." },
+  { title: "확인하고 내려받습니다", text: "AI의 제안을 보고 고친 뒤 mp4로 만듭니다. 자막은 SRT로도 받을 수 있어요." },
 ];
 
-const TRUST: { icon: string; title: string; text: string }[] = [
-  { icon: "🔒", title: "영상은 내 컴퓨터에서", text: "자르고 붙이고 인코딩하는 모든 처리가 내 컴퓨터에서 일어납니다. 영상 파일이 서버로 올라가지 않아요." },
-  { icon: "🧾", title: "AI 비용이 눈에 보입니다", text: "AI를 쓰는 작업은 표시가 붙고, 호출마다 토큰과 시간을 기록해 작업당 원가를 직접 확인할 수 있습니다." },
-  { icon: "✅", title: "권리 확인이 먼저", text: "방송·타사 영상을 내려받는 기능은 없습니다. 내가 찍었거나 허락받은 영상에만 쓰도록 확인을 거칩니다." },
+const TRUST: { icon: IconName; title: string; text: string }[] = [
+  { icon: "film", title: "영상은 내 컴퓨터에서", text: "자르고 붙이고 인코딩하는 모든 처리가 내 컴퓨터에서 일어납니다. 영상 파일이 서버로 올라가지 않아요." },
+  { icon: "timeline", title: "AI 비용이 눈에 보입니다", text: "AI를 쓰는 작업은 표시가 붙고, 호출마다 토큰과 시간을 기록해 작업당 원가를 직접 확인할 수 있습니다." },
+  { icon: "check", title: "권리 확인이 먼저", text: "방송·타사 영상을 내려받는 기능은 없습니다. 내가 찍었거나 허락받은 영상에만 쓰도록 확인을 거칩니다." },
 ];
+
+/** A small label above a heading: a number in the film-timecode style, then what the section is. */
+function Eyebrow({ n, text }: { n: string; text: string }) {
+  return (
+    <p className="flex items-center gap-3">
+      <span className="timecode !text-foreground">{n}</span>
+      <span className="h-px w-8 bg-foreground/40" aria-hidden />
+      <span className="text-sm font-semibold text-muted">{text}</span>
+    </p>
+  );
+}
+
+/** A real screenshot of the app in a plain frame, with what it shows underneath. */
+function Shot({ src, w, h, alt, caption, priority = false }: { src: string; w: number; h: number; alt: string; caption: string; priority?: boolean }) {
+  return (
+    <figure className="flex flex-col gap-3">
+      <Image src={src} width={w} height={h} alt={alt} priority={priority} unoptimized className="h-auto w-full rounded-[10px] border border-line" />
+      <figcaption className="text-sm font-medium text-muted">{caption}</figcaption>
+    </figure>
+  );
+}
 
 /** The front page: what the tool does, how to use it in three steps, and why it is safe to try. Static. */
 export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader>
-        <Link className="btn-primary !py-2" href="/edit">지금 시작하기</Link>
+        <Link className="btn-primary" href="/edit">지금 시작하기</Link>
       </SiteHeader>
 
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         {/* hero */}
-        <section className="hero-bg relative overflow-hidden">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:py-24">
-            <div className="flex flex-col items-start gap-6">
-              <span className="chip bg-accent/10 px-3 py-1 text-accent">✨ AI 영상 편집 도우미 · 내 컴퓨터에서 처리</span>
-              <h1 className="text-4xl font-black leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">
-                긴 영상 한 편이,
+        <section>
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:py-24">
+            <div className="flex flex-col items-start gap-7">
+              <Eyebrow n="00:00:00:00" text="AI 영상 편집 도우미" />
+              <h1 className="text-5xl font-bold leading-[1.08] sm:text-6xl lg:text-7xl">
+                긴 영상 한 편을,
                 <br />
-                <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">올릴 수 있는 쇼츠</span>가 됩니다
+                <span className="mark">올릴 수 있는 쇼츠</span>로.
               </h1>
               <p className="max-w-xl text-lg text-muted">
                 구간 고르기, 컷, 자막, 세로 변환, 효과음까지. 영상을 고르면 AI가 제안하고, 내가 확인한 뒤에 만들어 줍니다.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <Link href="/edit" className="btn-primary !px-7 !py-3.5 !text-base">지금 시작하기 →</Link>
+                <Link href="/edit" className="btn-primary gap-2 !px-7 !py-3.5 !text-base">
+                  지금 시작하기 <Icon name="arrow" size={18} />
+                </Link>
                 <a href="#how" className="btn !px-6 !py-3.5 !text-base">사용 방법 보기</a>
               </div>
-              <p className="text-sm text-muted">Google 로그인 없이 바로 · 영상은 이 컴퓨터 밖으로 나가지 않아요</p>
+              <p className="text-sm font-medium text-muted">로그인 없음 · 영상은 내 컴퓨터에서 처리</p>
             </div>
 
-            <PhoneMock />
+            <Shot src="/shots/cut.webp" w={1712} h={1160} alt="무음·군말 자르기: 자를 곳 목록과 원본·결과 길이" caption="실제 화면 · 무음·군말 자르기 결과 (테스트 영상)" priority />
+          </div>
+        </section>
+
+        <div className="sprockets text-foreground" aria-hidden />
+
+        {/* real screens */}
+        <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+          <Eyebrow n="01" text="실제 화면" />
+          <h2 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">한 번에 하나씩, 버튼으로 넘어가요</h2>
+          <p className="mt-4 max-w-2xl text-lg text-muted">작업을 고르고, 영상을 올리고, 꾸밀지 정하고, 만듭니다. 아래는 이 도구의 실제 화면입니다.</p>
+          <div className="mt-12 grid gap-8 md:grid-cols-2">
+            <Shot src="/shots/task.webp" w={1904} h={1370} alt="1단계: 하고 싶은 작업 고르기" caption="1단계 · 하고 싶은 작업을 고릅니다" />
+            <Shot src="/shots/style.webp" w={1904} h={1394} alt="3단계: 자막 스타일 고르기" caption="3단계 · 자막 스타일을 고릅니다 (선택)" />
           </div>
         </section>
 
         {/* features */}
-        <section id="features" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
-          <div className="mb-10 max-w-2xl">
-            <p className="text-sm font-bold text-accent">기능</p>
-            <h2 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">편집에서 가장 번거로운 일부터 덜어 드려요</h2>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="card flex flex-col gap-2 transition-shadow hover:shadow-md">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-2xl" aria-hidden>{f.icon}</span>
-                <h3 className="mt-1 text-lg font-bold">{f.title}</h3>
-                <p className="text-sm text-muted">{f.text}</p>
-                <span className={`chip mt-auto w-fit ${f.uses === "ai" ? "bg-accent/10 text-accent" : "bg-good/15 text-good"}`}>
-                  {f.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}
-                </span>
-              </div>
+        <section id="features" className="mx-auto w-full max-w-6xl scroll-mt-16 px-4 py-20 sm:px-6">
+          <Eyebrow n="02" text="기능" />
+          <h2 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">편집에서 가장 번거로운 일부터 덜어 드려요</h2>
+          <ul className="mt-12 divide-y divide-line border-y border-line">
+            {FEATURES.map((f, i) => (
+              <li key={f.title} className="grid items-start gap-3 py-6 sm:grid-cols-[3rem_minmax(0,1fr)_minmax(0,1.4fr)_8rem] sm:gap-6">
+                <span className="timecode pt-1">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="flex items-center gap-3 text-xl font-bold">
+                  <Icon name={f.icon} size={22} />
+                  {f.title}
+                </h3>
+                <p className="text-muted">{f.text}</p>
+                <span className={`${f.uses === "ai" ? "chip-ai" : "chip-local"} w-fit sm:justify-self-end`}>{f.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         {/* how */}
-        <section id="how" className="scroll-mt-20 bg-card/60 py-16">
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-            <div className="mb-10 max-w-2xl">
-              <p className="text-sm font-bold text-accent">사용 방법</p>
-              <h2 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">세 걸음이면 끝나요</h2>
-            </div>
-            <ol className="grid gap-4 md:grid-cols-3">
-              {HOW.map((h) => (
-                <li key={h.n} className="relative rounded-2xl border border-line bg-card p-6 shadow-sm">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-strong text-lg font-black text-white">{h.n}</span>
-                  <h3 className="mt-4 text-lg font-bold">{h.title}</h3>
-                  <p className="mt-1 text-sm text-muted">{h.text}</p>
+        <section id="how" className="scroll-mt-16 border-y border-line bg-foreground/[0.03]">
+          <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+            <Eyebrow n="03" text="사용 방법" />
+            <h2 className="mt-3 text-4xl font-bold sm:text-5xl">세 걸음이면 끝나요</h2>
+            <ol className="mt-12 grid gap-10 md:grid-cols-3">
+              {HOW.map((h, i) => (
+                <li key={h.title} className="border-t-2 border-foreground pt-5">
+                  <span className="font-mono text-5xl font-bold tabular-nums">{i + 1}</span>
+                  <h3 className="mt-4 text-xl font-bold">{h.title}</h3>
+                  <p className="mt-2 text-muted">{h.text}</p>
                 </li>
               ))}
             </ol>
@@ -96,29 +131,28 @@ export default function Landing() {
         </section>
 
         {/* trust */}
-        <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-          <div className="mb-10 max-w-2xl">
-            <p className="text-sm font-bold text-accent">안심하고 쓰는 이유</p>
-            <h2 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">내 영상, 내 비용, 내 책임을 분명하게</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
+        <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
+          <Eyebrow n="04" text="안심하고 쓰는 이유" />
+          <h2 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">내 영상, 내 비용, 내 책임을 분명하게</h2>
+          <div className="mt-12 grid gap-10 md:grid-cols-3">
             {TRUST.map((t) => (
-              <div key={t.title} className="flex flex-col gap-2 rounded-2xl border border-line p-6">
-                <span className="text-3xl" aria-hidden>{t.icon}</span>
-                <h3 className="text-lg font-bold">{t.title}</h3>
-                <p className="text-sm text-muted">{t.text}</p>
+              <div key={t.title} className="flex flex-col gap-3">
+                <Icon name={t.icon} size={28} />
+                <h3 className="text-xl font-bold">{t.title}</h3>
+                <p className="text-muted">{t.text}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* closing call */}
-        <section className="px-4 pb-20 sm:px-6">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-5 rounded-3xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 px-6 py-14 text-center text-white shadow-lg">
-            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">영상 하나로 지금 바로 해 보세요</h2>
-            <p className="max-w-xl text-white/85">파일을 끌어다 놓기만 하면 시작됩니다. 계정도 설치도 필요 없어요.</p>
-            <Link href="/edit" className="inline-flex items-center rounded-xl bg-white px-8 py-3.5 text-base font-bold text-indigo-700 shadow hover:bg-white/90">
-              영상 편집 시작하기 →
+        {/* closing call: the one dark band on the page */}
+        <section className="bg-foreground text-background">
+          <div className="sprockets text-background" aria-hidden />
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-start gap-6 px-4 py-20 sm:px-6">
+            <h2 className="max-w-3xl text-4xl font-bold sm:text-6xl">영상 하나로 지금 바로 해 보세요.</h2>
+            <p className="max-w-xl text-lg opacity-70">파일을 끌어다 놓기만 하면 시작됩니다. 계정도 설치도 필요 없어요.</p>
+            <Link href="/edit" className="inline-flex items-center gap-2 rounded-lg bg-background px-8 py-3.5 text-base font-semibold text-foreground hover:opacity-85">
+              영상 편집 시작하기 <Icon name="arrow" size={18} />
             </Link>
           </div>
         </section>
@@ -128,38 +162,13 @@ export default function Landing() {
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted sm:px-6">
           <Brand size={24} />
           <p>© {BRAND} · 내 채널을 키우는 편집 도구</p>
-          <nav className="flex gap-4" aria-label="바로가기">
+          <nav className="flex gap-5" aria-label="바로가기">
             <Link href="/edit" className="hover:text-foreground">영상 편집</Link>
             <Link href="/channel" className="hover:text-foreground">채널 분석</Link>
             <a href="https://github.com/YunhuPark/yt-growth-coach" className="hover:text-foreground">GitHub</a>
           </nav>
         </div>
       </footer>
-    </div>
-  );
-}
-
-/** A phone showing a Short being cut, with the kinds of things the tool adds around it. Decoration, not a screenshot. */
-function PhoneMock() {
-  return (
-    <div className="relative mx-auto w-full max-w-sm" aria-hidden>
-      <div className="absolute -left-4 top-10 z-10 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold shadow-lg">🎯 AI가 고른 구간 · 점수 예시</div>
-      <div className="absolute -right-2 top-1/2 z-10 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold shadow-lg">📱 사람을 따라가는 프레임</div>
-      <div className="absolute -bottom-3 left-6 z-10 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold shadow-lg">✂️ 무음 구간 자동 컷</div>
-
-      <div className="mx-auto w-64 rounded-[2.2rem] border-[6px] border-zinc-900 bg-zinc-900 shadow-2xl dark:border-zinc-700">
-        <div className="relative aspect-[9/16] overflow-hidden rounded-[1.7rem] bg-gradient-to-b from-indigo-400 via-fuchsia-400 to-orange-300">
-          <div className="absolute left-1/2 top-[22%] h-20 w-20 -translate-x-1/2 rounded-full bg-white/70" />
-          <div className="absolute left-1/2 top-[38%] h-36 w-32 -translate-x-1/2 rounded-t-[3rem] bg-white/60" />
-          <div className="absolute inset-x-4 top-5 rounded-lg bg-black/50 px-3 py-1.5 text-center text-sm font-black text-white">이 구간이 제일 반응 좋았어요</div>
-          <div className="absolute inset-x-4 bottom-12 rounded-md bg-black/60 px-3 py-1.5 text-center text-sm font-bold text-white">자막이 이렇게 들어가요</div>
-          <div className="absolute inset-x-4 bottom-5 flex h-2 gap-0.5">
-            {[28, 12, 20, 9, 31].map((w, i) => (
-              <span key={i} className="h-full rounded-full bg-white/80" style={{ flexGrow: w }} />
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

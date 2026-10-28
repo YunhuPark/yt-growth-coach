@@ -64,6 +64,7 @@ export default function AutoEdit({ topic: initialTopic, layout, source }: { topi
   return (
     <section className="card flex flex-col gap-4">
       <ToolIntro
+        icon="timeline"
         title="한 편 자동 편집"
         summary="영상 한 편의 컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤에 영상으로 만듭니다."
         steps={["주제와 목표 길이를 적습니다","‘AI 편집 계획 만들기’를 누릅니다","계획을 확인하고 고친 뒤 영상으로 만듭니다"]}

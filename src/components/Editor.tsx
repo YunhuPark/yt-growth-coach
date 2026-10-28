@@ -9,6 +9,7 @@ import { EffectsProvider } from "./effectsContext";
 import { FramingProvider } from "./framingContext";
 import HealthCheck, { HealthWarnings } from "./HealthCheck";
 import Highlights from "./Highlights";
+import Icon, { type IconName } from "./Icon";
 import SettingsPanel, { SettingsSummary } from "./SettingsPanel";
 import SiteHeader from "./SiteHeader";
 import SourcePanel from "./SourcePanel";
@@ -18,12 +19,12 @@ import UrlPlan from "./UrlPlan";
 type Tool = "shorts" | "auto" | "cut" | "frame" | "url";
 type StepId = "task" | "video" | "style" | "run";
 
-const TOOLS: { id: Tool; icon: string; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean }[] = [
-  { id: "shorts", icon: "🎬", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑아 쇼츠로 만듭니다.", uses: "ai", needsVideo: true },
-  { id: "auto", icon: "✨", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
-  { id: "cut", icon: "✂️", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
-  { id: "frame", icon: "📱", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
-  { id: "url", icon: "🔗", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
+const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean }[] = [
+  { id: "shorts", icon: "clapper", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑아 쇼츠로 만듭니다.", uses: "ai", needsVideo: true },
+  { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
+  { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
+  { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
+  { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
 ];
 
 const STEP_LABEL: Record<StepId, string> = { task: "작업 고르기", video: "영상 올리기", style: "꾸미기", run: "만들기" };
@@ -50,7 +51,7 @@ export default function Editor() {
   const go = (s: StepId) => {
     setStep(s);
     if (s === "run") setRanOnce(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
   const choose = (id: Tool) => {
     if (id !== toolId) setRanOnce(false); // another task starts its own panel
@@ -81,15 +82,15 @@ export default function Editor() {
             <HealthCheck />
           </SiteHeader>
 
-          <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6">
+          <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6">
             <Stepper steps={steps} current={step} onGo={go} reachable={reachable} />
 
             <HealthWarnings />
 
             {/* 1. what to do */}
             <Pane hidden={step !== "task"}>
-              <Heading title="무엇을 해볼까요?" sub="하고 싶은 작업을 하나 고르세요. 나중에 언제든 바꿀 수 있어요." />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Heading n={1} total={steps.length} title="무엇을 해볼까요?" sub="하고 싶은 작업을 하나 고르세요. 나중에 언제든 바꿀 수 있어요." />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {TOOLS.map((t) => {
                   const selected = toolId === t.id;
                   return (
@@ -97,14 +98,18 @@ export default function Editor() {
                       key={t.id}
                       onClick={() => choose(t.id)}
                       aria-pressed={selected}
-                      className={`group relative flex flex-col gap-2 rounded-2xl border-2 p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${selected ? "border-accent bg-accent/5 ring-2 ring-accent/20" : "border-line bg-card hover:border-accent/50"}`}
+                      className={`relative flex flex-col gap-2 rounded-[10px] border p-5 text-left transition-colors ${selected ? "border-foreground bg-foreground/[0.04] outline outline-1 outline-foreground" : "border-line bg-card hover:border-foreground/40"}`}
                     >
-                      {selected && <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-accent-strong text-xs font-bold text-white" aria-hidden>✓</span>}
-                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-3xl" aria-hidden>{t.icon}</span>
-                      <span className="text-lg font-bold leading-tight">{t.title}</span>
+                      {selected && (
+                        <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded bg-accent-strong text-on-accent" aria-hidden>
+                          <Icon name="check" size={14} />
+                        </span>
+                      )}
+                      <Icon name={t.icon} size={26} />
+                      <span className="mt-1 text-lg font-bold leading-tight tracking-tight">{t.title}</span>
                       <span className="text-sm text-muted">{t.blurb}</span>
-                      <span className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                        <span className={`chip ${t.uses === "ai" ? "bg-accent/10 text-accent" : "bg-good/15 text-good"}`}>{t.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}</span>
+                      <span className="mt-auto flex flex-wrap gap-1.5 pt-3">
+                        <span className={t.uses === "ai" ? "chip-ai" : "chip-local"}>{t.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}</span>
                         <span className="chip">{t.needsVideo ? "영상 파일 필요" : "파일 없이 가능"}</span>
                       </span>
                     </button>
@@ -112,34 +117,34 @@ export default function Editor() {
                 })}
               </div>
               <p className="text-sm text-muted">
-                <span className="chip bg-accent/10 text-accent">AI 사용</span> 은 분석을 위해 이미지·글자 일부를 AI 서비스로 보내고 사용량만큼 비용이 듭니다.{" "}
-                <span className="chip bg-good/15 text-good">내 컴퓨터에서만</span> 는 영상이 밖으로 나가지 않고 비용도 들지 않습니다.
+                <span className="chip-ai">AI 사용</span> 은 분석을 위해 이미지·글자 일부를 AI 서비스로 보내고 사용량만큼 비용이 듭니다.{" "}
+                <span className="chip-local">내 컴퓨터에서만</span> 는 영상이 밖으로 나가지 않고 비용도 들지 않습니다.
               </p>
-              <StepNav next={next} nextLabel="다음: 영상 올리기 →" blocked={nextBlocked.task} />
+              <StepNav next={next} nextLabel="다음: 영상 올리기" blocked={nextBlocked.task} />
             </Pane>
 
             {/* 2. the video */}
             <Pane hidden={step !== "video"}>
-              <Heading title="편집할 영상을 올려 주세요" sub={tool ? `${tool.icon} ${tool.title}에 쓸 영상이에요. 한 번 올리면 이후 단계에서 계속 이 영상을 씁니다.` : ""} />
+              <Heading n={2} total={steps.length} title="편집할 영상을 올려 주세요" sub={tool ? `${tool.title}에 쓸 영상이에요. 한 번 올리면 이후 단계에서 계속 이 영상을 씁니다.` : ""} />
               <SourcePanel source={source} onChange={setSource} hideTitle />
-              <StepNav back={back} next={next} nextLabel="다음: 꾸미기 →" blocked={nextBlocked.video} />
+              <StepNav back={back} next={next} nextLabel="다음: 꾸미기" blocked={nextBlocked.video} />
             </Pane>
 
             {/* 3. how it should look */}
             <Pane hidden={step !== "style"}>
-              <Heading title="어떻게 꾸밀까요?" sub="모두 선택 사항이에요. 건드리지 않으면 기본 설정으로 만들어집니다." />
+              <Heading n={3} total={steps.length} title="어떻게 꾸밀까요?" sub="모두 선택 사항이에요. 건드리지 않으면 기본 설정으로 만들어집니다." />
               <SettingsPanel />
-              <StepNav back={back} next={next} nextLabel="다음: 만들기 →" blocked={nextBlocked.style} />
+              <StepNav back={back} next={next} nextLabel="다음: 만들기" blocked={nextBlocked.style} />
             </Pane>
 
             {/* 4. do it */}
             {(step === "run" || ranOnce) && tool && (
               <Pane hidden={step !== "run"}>
-                <Heading title="이제 만들어 볼까요?" sub={`${tool.icon} ${tool.title} · 아래 순서대로 진행하세요. 중간 결과는 뒤로 갔다 와도 남아 있어요.`} />
+                <Heading n={steps.length} total={steps.length} title="이제 만들어 볼까요?" sub={`${tool.title} · 아래 순서대로 진행하세요. 중간 결과는 뒤로 갔다 와도 남아 있어요.`} />
                 <div className="callout flex flex-wrap items-center gap-2">
-                  {tool.needsVideo && <span className="chip bg-good/15 text-good">🎞️ {sourceName(source) || "영상 없음"}</span>}
+                  {tool.needsVideo && <span className="chip-local">{sourceName(source) || "영상 없음"}</span>}
                   {tool.needsVideo && <SettingsSummary />}
-                  <button className="ml-auto text-sm font-medium text-accent underline" onClick={() => go(tool.needsVideo ? "video" : "task")}>
+                  <button className="ml-auto text-sm font-medium underline underline-offset-4" onClick={() => go(tool.needsVideo ? "video" : "task")}>
                     {tool.needsVideo ? "영상·설정 바꾸기" : "작업 바꾸기"}
                   </button>
                 </div>
@@ -149,7 +154,7 @@ export default function Editor() {
                     <legend className="sr-only">결과 형식</legend>
                     <span className="text-xs font-medium text-muted">결과 형식</span>
                     {(["short", "long"] as const).map((l) => (
-                      <label key={l} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 ${layout === l ? "border-accent bg-accent/5" : "border-line"}`}>
+                      <label key={l} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 ${layout === l ? "border-foreground bg-foreground/[0.04]" : "border-line"}`}>
                         <input type="radio" name="layout" checked={layout === l} onChange={() => setLayout(l)} />
                         {l === "short" ? "쇼츠 (세로 1080×1920)" : "롱폼 (가로 1920×1080)"}
                       </label>
@@ -183,11 +188,14 @@ function Pane({ hidden, children }: { hidden: boolean; children: ReactNode }) {
   );
 }
 
-function Heading({ title, sub }: { title: string; sub?: string }) {
+function Heading({ n, total, title, sub }: { n: number; total: number; title: string; sub?: string }) {
   return (
     <div>
-      <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>
-      {sub && <p className="mt-2 text-base text-muted">{sub}</p>}
+      <p className="timecode">
+        STEP {String(n).padStart(2, "0")} / {String(total).padStart(2, "0")}
+      </p>
+      <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{title}</h1>
+      {sub && <p className="mt-3 text-base text-muted">{sub}</p>}
     </div>
   );
 }
@@ -196,12 +204,19 @@ function Heading({ title, sub }: { title: string; sub?: string }) {
 function StepNav({ back, next, nextLabel, blocked }: { back?: () => void; next?: () => void; nextLabel?: string; blocked?: string | null }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-line pt-5">
-      {back ? <button className="btn !px-5 !py-3 !text-base" onClick={back}>← 이전</button> : <span />}
+      {back ? (
+        <button className="btn !px-5 !py-3 !text-base" onClick={back}>
+          ← 이전
+        </button>
+      ) : (
+        <span />
+      )}
       {next && (
         <>
           {blocked && <span className="ml-auto text-sm text-muted">{blocked}</span>}
-          <button className={`btn-primary !px-7 !py-3 !text-base ${blocked ? "" : "ml-auto"}`} onClick={next} disabled={!!blocked}>
-            {nextLabel ?? "다음 →"}
+          <button className={`btn-primary gap-2 !px-7 !py-3 !text-base ${blocked ? "" : "ml-auto"}`} onClick={next} disabled={!!blocked}>
+            {nextLabel ?? "다음"}
+            <Icon name="arrow" size={18} />
           </button>
         </>
       )}
@@ -220,20 +235,15 @@ function Stepper({ steps, current, onGo, reachable }: { steps: StepId[]; current
         const can = reachable(s);
         return (
           <li key={s} className="flex flex-1 items-center last:flex-none">
-            <button
-              onClick={() => can && onGo(s)}
-              disabled={!can}
-              aria-current={active ? "step" : undefined}
-              className="flex items-center gap-2 disabled:cursor-default"
-            >
+            <button onClick={() => can && onGo(s)} disabled={!can} aria-current={active ? "step" : undefined} className="flex items-center gap-2.5 disabled:cursor-default">
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors ${active ? "bg-accent-strong text-white ring-4 ring-accent/20" : done ? "bg-accent/15 text-accent" : "bg-line text-muted"}`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border font-mono text-sm font-semibold transition-colors ${active ? "border-foreground bg-accent-strong text-on-accent" : done ? "border-foreground text-foreground" : "border-line text-muted"}`}
               >
-                {done ? "✓" : i + 1}
+                {done ? <Icon name="check" size={16} /> : i + 1}
               </span>
               <span className={`hidden text-sm font-semibold sm:inline ${active ? "text-foreground" : "text-muted"}`}>{STEP_LABEL[s]}</span>
             </button>
-            {i < steps.length - 1 && <span className={`mx-3 h-0.5 flex-1 rounded ${i < at ? "bg-accent/40" : "bg-line"}`} aria-hidden />}
+            {i < steps.length - 1 && <span className={`mx-3 h-px flex-1 ${i < at ? "bg-foreground" : "bg-line"}`} aria-hidden />}
           </li>
         );
       })}

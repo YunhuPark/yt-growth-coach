@@ -187,6 +187,7 @@ export default function AutoReframe({ source }: { source: SourceState }) {
   return (
     <section className="card flex flex-col gap-4">
       <ToolIntro
+        icon="frame"
         title="가로 → 세로 자동 프레임"
         summary="가로 영상을 세로(9:16)로 자를 때 사람·동물·탈것이 화면 밖으로 잘리지 않게 자르는 위치를 자동으로 옮깁니다."
         steps={["‘찾기 시작’을 누릅니다", "따라갈 대상·확대·카메라 움직임을 조절합니다", "구간을 정하고 ‘세로 쇼츠로 만들기’를 누릅니다"]}

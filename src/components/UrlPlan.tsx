@@ -77,6 +77,7 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
   return (
     <section className="card flex flex-col gap-4">
       <ToolIntro
+        icon="link"
         title="영상 주소로 분석"
         summary="유튜브 주소만 붙이면 영상 요약과 내 채널에 쓸 주제·제목·쇼츠 구간·롱폼 구성안을 만들어 줍니다. 영상 파일은 필요 없습니다."
         steps={["유튜브 영상 주소를 붙입니다", "분석 버튼을 누릅니다", "제안된 주제·제목·구간을 확인하고 활용합니다"]}

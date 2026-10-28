@@ -1,27 +1,36 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. The look is editorial and film-like: warm paper, near-black ink, hairline borders, no gradients and no shadows.
+ * Actions are ink (black on paper, paper on black); the one colour is a marker yellow, used sparingly as a highlight. Red is
+ * kept for errors and green for "stays on your computer", so colour always means something. See DESIGN.md.
+ */
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --card: #ffffff;
-  --line: #e7e5e4;
-  --muted: #78716c;
-  --accent: #4f46e5; /* calm indigo for actions and selection; red is kept for errors */
-  --accent-strong: #4f46e5; /* behind white text */
-  --good: #15803d;
-  --bad: #b91c1c;
+  --background: #f6f4ef;
+  --foreground: #14130f;
+  --card: #fbfaf7;
+  --line: #ddd9cf;
+  --muted: #6a665d;
+  --accent: #14130f; /* selection, links, focus */
+  --accent-strong: #14130f; /* behind text of --on-accent */
+  --on-accent: #f6f4ef;
+  --marker: #f2c200;
+  --good: #1f6f43;
+  --bad: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0a09;
-    --foreground: #f5f5f4;
-    --card: #1c1917;
-    --line: #292524;
-    --muted: #a8a29e;
-    --accent: #818cf8;
-    --good: #4ade80;
-    --bad: #f87171;
+    --background: #0d0d0c;
+    --foreground: #f1eee6;
+    --card: #151513;
+    --line: #2a2926;
+    --muted: #9a968b;
+    --accent: #f1eee6;
+    --accent-strong: #f1eee6;
+    --on-accent: #0d0d0c;
+    --good: #5bc98a;
+    --bad: #f2766e;
   }
 }
 
@@ -33,14 +42,11 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
+  --color-on-accent: var(--on-accent);
+  --color-marker: var(--marker);
   --color-good: var(--good);
   --color-bad: var(--bad);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
 }
 
 html {
@@ -48,9 +54,31 @@ html {
 }
 
 body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   line-height: 1.55;
   word-break: keep-all; /* break Korean text between words, not in the middle of one */
   overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em; /* tight, like film titles */
+}
+
+::selection {
+  background: var(--marker);
+  color: #14130f;
+}
+
+/* Native checkboxes, radios and sliders take the ink colour instead of the browser's blue. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--accent);
 }
 
 :focus-visible {
@@ -58,21 +86,39 @@ body {
   outline-offset: 2px;
 }
 
-.hero-bg {
-  background:
-    radial-gradient(60rem 28rem at 85% -10%, color-mix(in srgb, #a855f7 22%, transparent), transparent 70%),
-    radial-gradient(48rem 24rem at 0% 0%, color-mix(in srgb, #6366f1 20%, transparent), transparent 70%);
+/* A highlighter stroke behind part of a heading: the one decorative colour. */
+.mark {
+  background: linear-gradient(transparent 60%, var(--marker) 60% 92%, transparent 92%);
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* a highlighter stroke would put light text on yellow, so on dark the phrase itself is yellow */
+  .mark {
+    background: none;
+    color: var(--marker);
+    padding: 0;
+    margin: 0;
+  }
+}
+
+/* Film-strip holes along an edge. */
+.sprockets {
+  height: 9px;
+  background-image: repeating-linear-gradient(90deg, currentColor 0 12px, transparent 12px 26px);
+  opacity: 0.85;
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-line bg-card p-5 shadow-sm;
+    @apply rounded-[10px] border border-line bg-card p-5;
   }
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg border border-line bg-card px-3.5 py-2 text-sm font-medium hover:border-muted disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-lg border border-line bg-transparent px-3.5 py-2 text-sm font-medium hover:border-foreground/40 hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-accent-strong px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-lg bg-accent-strong px-5 py-2.5 text-sm font-semibold text-on-accent hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40;
   }
   .input {
     @apply w-full rounded-lg border border-line bg-background px-3 py-2 text-sm;
@@ -84,6 +130,16 @@ body {
     @apply rounded-lg border border-line bg-background px-4 py-3 text-sm;
   }
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full bg-line px-2.5 py-0.5 text-xs font-medium text-muted;
+    @apply inline-flex items-center gap-1 rounded-md bg-foreground/[0.07] px-2 py-0.5 text-xs font-medium text-muted;
+  }
+  /* "uses the AI service": the highlighter colour, so it reads at a glance */
+  .chip-ai {
+    @apply inline-flex items-center gap-1 rounded-md bg-marker px-2 py-0.5 text-xs font-semibold text-[#14130f];
+  }
+  .chip-local {
+    @apply inline-flex items-center gap-1 rounded-md bg-good/15 px-2 py-0.5 text-xs font-semibold text-good;
+  }
+  .timecode {
+    @apply font-mono text-xs tabular-nums tracking-wider text-muted;
   }
 }
