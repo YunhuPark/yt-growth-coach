@@ -25,7 +25,7 @@ export default function ToolIntro({
     <header className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         {icon && <Icon name={icon} size={24} />}
-        <h3 className="text-xl font-bold">{title}</h3>
+        <h2 className="text-xl font-bold">{title}</h2>
         {uses === "ai" ? (
           <span className="chip-ai" title="분석을 위해 이미지나 글자 일부가 AI 서비스(Anthropic API)로 전송되고, 사용량만큼 비용이 듭니다.">AI 사용</span>
         ) : (

@@ -34,7 +34,6 @@ export default function HealthCheck() {
       <details className="group">
         <summary
           className={`${blocking.length ? "bg-bad/15 text-bad" : "bg-good/15 text-good"} inline-flex cursor-pointer list-none items-center gap-1 select-none rounded-md px-2.5 py-1 text-xs font-semibold`}
-          aria-label="준비 상태 보기"
         >
           <span aria-hidden>{blocking.length ? "●" : "✓"}</span> 준비 상태 {done}/{items.length}
         </summary>
