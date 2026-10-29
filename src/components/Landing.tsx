@@ -10,6 +10,7 @@ const FEATURES: { icon: IconName; title: string; text: string; uses: "ai" | "loc
   { icon: "scissors", title: "무음·군말 자르기", text: "말이 끊긴 빈 구간과 “음…”, “어…”를 찾아 하나씩 들어 보고 잘라 냅니다.", uses: "local" },
   { icon: "frame", title: "자동 프레임", text: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local" },
   { icon: "wave", title: "전환·효과음", text: "컷마다 번쩍임·줌 펀치와 효과음을 자동으로 넣습니다. 자막 타이밍은 그대로입니다.", uses: "local" },
+  { icon: "chart", title: "시청 지속 분석", text: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지, 어디를 다시 돌려 봤는지 찾아 줍니다.", uses: "local" },
   { icon: "link", title: "주소로 분석", text: "유튜브 주소만 붙이면 요약과 주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다.", uses: "ai" },
 ];
 
@@ -54,7 +55,7 @@ export default function Landing() {
         <Link className="btn-primary" href="/edit">지금 시작하기</Link>
       </SiteHeader>
 
-      <main id="main" className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
         {/* hero */}
         <section>
           <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:py-24">
@@ -163,9 +164,9 @@ export default function Landing() {
           <Brand size={24} />
           <p>© {BRAND} · 내 채널을 키우는 편집 도구</p>
           <nav className="flex gap-5" aria-label="바로가기">
-            <Link href="/edit" className="hover:text-foreground">영상 편집</Link>
-            <Link href="/channel" className="hover:text-foreground">채널 분석</Link>
-            <a href="https://github.com/YunhuPark/yt-growth-coach" className="hover:text-foreground">GitHub</a>
+            <Link href="/edit" className="inline-block py-2 hover:text-foreground">영상 편집</Link>
+            <Link href="/channel" className="inline-block py-2 hover:text-foreground">채널 분석</Link>
+            <a href="https://github.com/YunhuPark/yt-growth-coach" className="inline-block py-2 hover:text-foreground">GitHub</a>
           </nav>
         </div>
       </footer>

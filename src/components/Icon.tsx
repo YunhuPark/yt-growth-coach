@@ -1,6 +1,6 @@
 import type { ReactNode, SVGProps } from "react";
 
-export type IconName = "clapper" | "timeline" | "scissors" | "frame" | "link" | "type" | "wave" | "film" | "check" | "arrow";
+export type IconName = "clapper" | "timeline" | "scissors" | "frame" | "link" | "type" | "wave" | "film" | "check" | "arrow" | "chart";
 
 // Plain line icons on a 24 px grid, drawn here so the interface needs no icon font or emoji (emoji look different on every system).
 const PATHS: Record<IconName, ReactNode> = {
@@ -52,6 +52,12 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  chart: (
+    <>
+      <path d="M4 4v16h16" />
+      <path d="m7 9 4 3 3-5 4 8" />
+    </>
+  ),
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
 };
 

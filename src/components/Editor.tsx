@@ -9,6 +9,7 @@ import { EffectsProvider } from "./effectsContext";
 import { FramingProvider } from "./framingContext";
 import HealthCheck, { HealthWarnings } from "./HealthCheck";
 import Highlights from "./Highlights";
+import RetentionTool from "./RetentionTool";
 import Icon, { type IconName } from "./Icon";
 import SettingsPanel, { SettingsSummary } from "./SettingsPanel";
 import SiteHeader from "./SiteHeader";
@@ -16,7 +17,7 @@ import SourcePanel from "./SourcePanel";
 import { EMPTY_SOURCE, sourceName, sourceReady, type SourceState } from "./source";
 import UrlPlan from "./UrlPlan";
 
-type Tool = "shorts" | "auto" | "cut" | "frame" | "url";
+type Tool = "shorts" | "auto" | "cut" | "frame" | "retention" | "url";
 type StepId = "task" | "video" | "style" | "run";
 
 const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean }[] = [
@@ -24,6 +25,7 @@ const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai
   { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
   { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
   { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
+  { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 영상 파일도 AI도 필요 없어요.", uses: "local", needsVideo: false },
   { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
 ];
 
@@ -52,6 +54,9 @@ export default function Editor() {
     setStep(s);
     if (s === "run") setRanOnce(true);
     window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    // The button that was pressed is on a screen that is now hidden, so keyboard and screen-reader focus would fall back to the top of
+    // the page. Put it on the new screen's title instead.
+    setTimeout(() => document.querySelector<HTMLElement>("main section:not([hidden]) h1")?.focus({ preventScroll: true }), 80);
   };
   const choose = (id: Tool) => {
     if (id !== toolId) setRanOnce(false); // another task starts its own panel
@@ -82,7 +87,7 @@ export default function Editor() {
             <HealthCheck />
           </SiteHeader>
 
-          <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6">
+          <main id="main" tabIndex={-1} className="mx-auto focus:outline-none flex w-full max-w-4xl flex-col gap-8 px-4 py-8 sm:px-6">
             <Stepper steps={steps} current={step} onGo={go} reachable={reachable} />
 
             <HealthWarnings />
@@ -120,7 +125,7 @@ export default function Editor() {
                 <span className="chip-ai">AI 사용</span> 은 분석을 위해 이미지·글자 일부를 AI 서비스로 보내고 사용량만큼 비용이 듭니다.{" "}
                 <span className="chip-local">내 컴퓨터에서만</span> 는 영상이 밖으로 나가지 않고 비용도 들지 않습니다.
               </p>
-              <StepNav next={next} nextLabel="다음: 영상 올리기" blocked={nextBlocked.task} />
+              <StepNav next={next} nextLabel={tool && !tool.needsVideo ? "다음: 시작하기" : "다음: 영상 올리기"} blocked={nextBlocked.task} />
             </Pane>
 
             {/* 2. the video */}
@@ -144,7 +149,7 @@ export default function Editor() {
                 <div className="callout flex flex-wrap items-center gap-2">
                   {tool.needsVideo && <span className="chip-local">{sourceName(source) || "영상 없음"}</span>}
                   {tool.needsVideo && <SettingsSummary />}
-                  <button className="ml-auto text-sm font-medium underline underline-offset-4" onClick={() => go(tool.needsVideo ? "video" : "task")}>
+                  <button className="ml-auto py-1.5 text-sm font-medium underline underline-offset-4" onClick={() => go(tool.needsVideo ? "video" : "task")}>
                     {tool.needsVideo ? "영상·설정 바꾸기" : "작업 바꾸기"}
                   </button>
                 </div>
@@ -167,6 +172,7 @@ export default function Editor() {
                   {tool.id === "auto" && <AutoEdit key={layout} topic="" layout={layout} source={source} />}
                   {tool.id === "cut" && <AutoCut source={source} />}
                   {tool.id === "frame" && <AutoReframe source={source} />}
+                  {tool.id === "retention" && <RetentionTool />}
                   {tool.id === "url" && <UrlPlan topic="" source={source} />}
                 </div>
                 <StepNav back={back} />
@@ -194,7 +200,7 @@ function Heading({ n, total, title, sub }: { n: number; total: number; title: st
       <p className="timecode">
         STEP {String(n).padStart(2, "0")} / {String(total).padStart(2, "0")}
       </p>
-      <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{title}</h1>
+      <h1 tabIndex={-1} className="mt-2 text-4xl font-bold focus:outline-none sm:text-5xl">{title}</h1>
       {sub && <p className="mt-3 text-base text-muted">{sub}</p>}
     </div>
   );
@@ -241,7 +247,7 @@ function Stepper({ steps, current, onGo, reachable }: { steps: StepId[]; current
               >
                 {done ? <Icon name="check" size={16} /> : i + 1}
               </span>
-              <span className={`hidden text-sm font-semibold sm:inline ${active ? "text-foreground" : "text-muted"}`}>{STEP_LABEL[s]}</span>
+              <span className={`sr-only text-sm font-semibold sm:not-sr-only ${active ? "text-foreground" : "text-muted"}`}>{STEP_LABEL[s]}</span>
             </button>
             {i < steps.length - 1 && <span className={`mx-3 h-px flex-1 ${i < at ? "bg-foreground" : "bg-line"}`} aria-hidden />}
           </li>
