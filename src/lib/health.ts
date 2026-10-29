@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { FFMPEG, findFont } from "./render";
+import { ffmpegHasFilter, FFMPEG, findFont } from "./render";
 import { loadTokens } from "./store";
 
 // "Is everything this app needs in place?", answered as yes/no per item. It never returns a secret, only whether one is set.
@@ -26,8 +26,9 @@ export const speechModelFile = () =>
 export const personModelFile = () => path.join(process.cwd(), ".data", "models", "Xenova", "yolos-tiny", "onnx", "model_quantized.onnx");
 
 export async function checkHealth(): Promise<HealthItem[]> {
-  const [ffmpeg, font, speech, person, tokens] = await Promise.all([
+  const [ffmpeg, drawtext, font, speech, person, tokens] = await Promise.all([
     exists(FFMPEG),
+    ffmpegHasFilter("drawtext"),
     findFont().then(
       () => true,
       () => false,
@@ -37,7 +38,14 @@ export async function checkHealth(): Promise<HealthItem[]> {
     loadTokens().catch(() => null),
   ]);
   return [
-    { id: "ffmpeg", ok: ffmpeg, required: true, fix: "영상 처리 엔진(ffmpeg)이 없습니다. 프로젝트 폴더에서 npm install을 다시 실행해 주세요." },
+    {
+      id: "ffmpeg",
+      ok: ffmpeg && drawtext,
+      required: true,
+      fix: ffmpeg
+        ? "이 ffmpeg에는 글자를 그리는 기능(drawtext)이 없어 자막과 훅을 넣을 수 없습니다. 전체 기능을 가진 ffmpeg(예: Linux는 apt의 ffmpeg)를 설치하고 환경변수 FFMPEG_PATH에 그 경로를 지정해 주세요."
+        : "영상 처리 엔진(ffmpeg)이 없습니다. 프로젝트 폴더에서 npm install을 다시 실행하거나, 환경변수 FFMPEG_PATH에 ffmpeg 경로를 지정해 주세요.",
+    },
     { id: "font", ok: font, required: true, fix: "자막에 쓸 한글 폰트가 없습니다. 맑은 고딕이나 나눔고딕을 설치해 주세요." },
     {
       id: "anthropic",

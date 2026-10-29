@@ -2,7 +2,6 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { analyzeVideo, detectSilences, type Analysis } from "./analyzeVideo";
 import { planEdit, type EditPlan, type PlanContext } from "./autoEdit";
-import { loadClipProfile } from "./channelProfile";
 import type { ClipProfile } from "./clipProfile";
 import { findHighlights, type Highlight } from "./highlights";
 import type { Seg, Word } from "./cutPlan";
@@ -126,6 +125,7 @@ export function startHighlights(
     longform?: boolean;
     /** address of the original YouTube video, so the moments its viewers point at can guide the choice */
     sourceUrl?: string;
+    /** what has worked on the creator's channel, if the caller can tell (the app layer passes the channel analysis); none by default */
     loadProfile?: () => Promise<ClipProfile | null>;
   },
 ) {
@@ -133,7 +133,7 @@ export function startHighlights(
   start(args, "highlights", 24, async (analysis, job) => {
     job.stage = "내 채널에서 잘된 쇼츠 확인하는 중";
     // Not signed in, no quota, or too few Shorts: carry on without channel history rather than fail the whole search.
-    const profile = await (args.loadProfile ?? loadClipProfile)().catch(() => null);
+    const profile = await (args.loadProfile ?? (async () => null))().catch(() => null);
     job.lengthRange = profile?.lengthRange ?? null;
 
     // The original video's address: what its viewers pointed at in the comments. A failure only costs the hint.

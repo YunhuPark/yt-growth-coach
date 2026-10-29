@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { normalizeStyle, styledText, type CaptionStyle } from "./captionStyle";
 import { hasEffects, normalizeEffects, planEffects, soundGraph, type EffectsOpts } from "./effects";
@@ -62,7 +63,9 @@ export const LAYOUTS: Record<
   },
 };
 
-export const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
+// The ffmpeg that comes with the ffmpeg-static package, unless FFMPEG_PATH points at another one. The Linux build of that package has
+// no text-drawing filter (drawtext), so on Linux (the Docker image, CI) the system's ffmpeg is used.
+export const FFMPEG = process.env.FFMPEG_PATH || path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 
 const FONT_CANDIDATES = [
   "C:/Windows/Fonts/malgunbd.ttf",
@@ -84,6 +87,21 @@ export async function findFont() {
     }
   }
   throw new Error("한글 폰트를 찾지 못했습니다. 맑은 고딕이나 나눔고딕을 설치해 주세요.");
+}
+
+let filters: Promise<string> | null = null;
+/** Whether this ffmpeg has a filter of that name, e.g. "drawtext" (captions and hooks cannot be drawn without it). */
+export async function ffmpegHasFilter(name: string): Promise<boolean> {
+  filters ??= (async () => {
+    let out = "";
+    try {
+      await run(["-hide_banner", "-filters"], os.tmpdir(), 20_000, (c) => (out += c)); // not the working folder: a folder an ffmpeg runs in cannot be deleted at once on Windows
+    } catch {
+      /* ffmpeg could not run at all: no filters */
+    }
+    return out;
+  })();
+  return new RegExp(`\\s${name}\\s`).test(await filters);
 }
 
 /**

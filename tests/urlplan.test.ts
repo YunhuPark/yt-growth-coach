@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildClipProfile } from "../src/lib/clipProfile";
+import { buildClipProfile } from "../src/lib/clipProfileBuild";
 import { describeForHighlights } from "../src/lib/highlights";
 import { scoreVideos } from "../src/lib/metrics";
 import {

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
 import { autoEditDir, startHighlights } from "@/lib/autoEditJobs";
+import { loadClipProfile } from "@/lib/channelProfile";
 import { errorResponse } from "@/lib/http";
 import { acceptSource, Rights, SourceError } from "@/lib/source";
 
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    startHighlights({ id, dir, input: src.input, deleteInput: src.deleteInput, topic, count, longform, sourceUrl, speech: speech ? {} : undefined });
+    startHighlights({ id, dir, input: src.input, deleteInput: src.deleteInput, topic, count, longform, sourceUrl, speech: speech ? {} : undefined, loadProfile: loadClipProfile });
     return Response.json({ id }, { status: 202 });
   } catch (e) {
     return errorResponse(e);

@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-# The whole tool in one image: the web app, ffmpeg (from the ffmpeg-static package) and a Korean font for captions.
+# The whole tool in one image: the web app, the system ffmpeg and a Korean font for captions. (The Linux build of the ffmpeg-static
+# package has no drawtext filter, so captions could not be drawn with it; FFMPEG_PATH points the app at the system one.)
 # Models (speech recognition, subject detection) are downloaded on first use into /app/.data, which should be a volume.
 #
 #   docker build -t cliplab .
@@ -20,12 +21,11 @@ RUN npm run build
 
 FROM node:22-bookworm-slim
 RUN apt-get update \
- && apt-get install -y --no-install-recommends fonts-nanum ca-certificates \
+ && apt-get install -y --no-install-recommends ffmpeg fonts-nanum ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
-# The app finds ffmpeg and its data under the working directory, so those stay in place; dev dependencies stay too because
-# next.config.ts needs TypeScript when the server starts.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 FFMPEG_PATH=/usr/bin/ffmpeg
+# The app keeps its data under the working directory; dev dependencies stay because next.config.ts needs TypeScript when the server starts.
 COPY --from=build /app/package.json /app/next.config.ts /app/tsconfig.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
