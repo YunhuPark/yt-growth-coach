@@ -10,7 +10,7 @@
   --foreground: #14130f;
   --card: #fbfaf7;
   --line: #ddd9cf;
-  --muted: #6a665d;
+  --muted: #625e55; /* 4.5:1 or better on paper, card and the grey of chips */
   --accent: #14130f; /* selection, links, focus */
   --accent-strong: #14130f; /* behind text of --on-accent */
   --on-accent: #f6f4ef;
@@ -79,6 +79,22 @@ input[type="checkbox"],
 input[type="radio"],
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+input[type="range"] {
+  min-height: 1.5rem;
+}
+
+/* Fingers need room: labels around a checkbox or radio and disclosure summaries are at least 28 px tall. */
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]),
+summary {
+  min-height: 1.75rem;
+}
+label:has(> input[type="checkbox"]),
+label:has(> input[type="radio"]) {
+  display: flex;
+  align-items: center;
 }
 
 :focus-visible {

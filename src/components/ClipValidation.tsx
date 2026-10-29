@@ -119,7 +119,7 @@ function LinkRow({ videos, onLink }: { videos: Video[]; onLink: (video: string) 
   return (
     <div className="flex flex-wrap items-center gap-2">
       {videos.length > 0 && (
-        <select className="input w-auto max-w-[22rem]" value="" onChange={(e) => e.target.value && onLink(e.target.value)}>
+        <select className="input w-auto max-w-[22rem]" aria-label="올린 영상에 연결하기" value="" onChange={(e) => e.target.value && onLink(e.target.value)}>
           <option value="">올린 영상 고르기…</option>
           {[...videos]
             .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))

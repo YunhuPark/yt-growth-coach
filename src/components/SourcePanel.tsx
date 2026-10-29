@@ -9,27 +9,13 @@ const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 
 /**
  * Step 1 on every page that edits video: which video, and the confirmation that the creator may use it. Chosen once here, so
- * the tools below don't each ask again. Once it is ready it folds into one line, and "영상 바꾸기" opens it again.
+ * the tools below don't each ask again. It stays as it is when it becomes ready: folding it away at that moment would take the focus
+ * away from a keyboard user who has just ticked the confirmation.
  */
 export default function SourcePanel({ source, onChange, hideTitle = false }: { source: SourceState; onChange: (s: SourceState) => void; hideTitle?: boolean }) {
-  const [editing, setEditing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const set = (patch: Partial<SourceState>) => onChange({ ...source, ...patch });
   const ready = sourceReady(source);
-  const basisLabel = BASIS.find((b) => b.id === source.basis)?.label;
-
-  if (ready && !editing) {
-    return (
-      <section id="step-source" className="card flex flex-wrap items-center gap-3 !py-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-good/15 text-good" aria-hidden><Icon name="check" size={16} /></span>
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{sourceName(source)}</p>
-          <p className="text-xs text-muted">{basisLabel} · 영상은 이 컴퓨터에서만 처리됩니다</p>
-        </div>
-        <button className="btn ml-auto" onClick={() => setEditing(true)}>영상 바꾸기</button>
-      </section>
-    );
-  }
 
   return (
     <section id="step-source" className="card flex flex-col gap-4">
@@ -41,7 +27,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       )}
 
       <label
-        className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border-2 border-dashed px-4 py-8 text-center transition-colors ${dragging ? "border-foreground bg-foreground/5" : "border-line hover:border-foreground/50"}`}
+        className={`flex cursor-pointer flex-col items-center focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-foreground justify-center gap-1 rounded-[10px] border-2 border-dashed px-4 py-8 text-center transition-colors ${dragging ? "border-foreground bg-foreground/5" : "border-line hover:border-foreground/50"}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -101,10 +87,9 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className={ready ? "chip-local" : "chip"}>
-          {ready ? "준비됨" : hasSource(source) ? "권리 확인을 마치면 시작할 수 있어요" : "영상을 골라 주세요"}
+        <span role="status" className={ready ? "chip-local" : "chip"}>
+          {ready ? `준비됨 · ${sourceName(source)}` : hasSource(source) ? "권리 확인을 마치면 시작할 수 있어요" : "영상을 골라 주세요"}
         </span>
-        {ready && <button className="btn-primary" onClick={() => setEditing(false)}>확인</button>}
       </div>
     </section>
   );

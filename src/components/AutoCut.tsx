@@ -264,7 +264,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span className="text-xs text-muted">결과 형식</span>
-              <select className="input w-auto" value={layout} onChange={(e) => setLayout(e.target.value as typeof layout)}>
+              <select className="input w-auto" aria-label="결과 영상 형식" value={layout} onChange={(e) => setLayout(e.target.value as typeof layout)}>
                 <option value="auto">자동 ({horizontal ? "가로 1920×1080" : "세로 1080×1920"})</option>
                 <option value="long">가로 1920×1080</option>
                 <option value="short">세로 쇼츠 1080×1920 (3분 이하)</option>

@@ -155,7 +155,7 @@ export default function Dashboard() {
 
 function Shell({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) {
   return (
-    <main id="main" className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6">
+    <main id="main" tabIndex={-1} className="mx-auto focus:outline-none flex w-full max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6">
       {header ?? <h1 className="text-2xl font-black tracking-tight">채널 분석 · 추천 · 성과 추적</h1>}
       {children}
     </main>
@@ -258,12 +258,12 @@ function Diagnosis({ a }: { a: Extract<Analysis, { connected: true }> }) {
         <div className="flex items-center justify-between p-4 pb-2">
           <h2 className="font-semibold">영상별 품질 점수 · 회고</h2>
           <div className="flex gap-2">
-            <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+            <select className="input w-auto" aria-label="정렬 기준" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
               <option value="score">품질 점수순</option>
               <option value="views">총 조회수순</option>
               <option value="cvr">구독 전환순</option>
             </select>
-            <select className="input w-auto" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
+            <select className="input w-auto" aria-label="영상 종류" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
               <option value="all">전체</option>
               <option value="long">롱폼</option>
               <option value="short">쇼츠</option>

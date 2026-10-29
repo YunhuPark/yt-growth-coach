@@ -159,10 +159,10 @@ export default function OneClick({ goal, onDone }: { goal: string; onDone: () =>
               <input type="checkbox" checked={w.enabled} onChange={(e) => saveWeekly({ ...w, enabled: e.target.checked })} />
               매주 자동으로 준비하기
             </label>
-            <select className="input w-auto" value={w.day} onChange={(e) => saveWeekly({ ...w, day: Number(e.target.value) })}>
+            <select className="input w-auto" aria-label="자동 실행 요일" value={w.day} onChange={(e) => saveWeekly({ ...w, day: Number(e.target.value) })}>
               {DAYS.map((d, i) => <option key={d} value={i}>{d}요일</option>)}
             </select>
-            <select className="input w-auto" value={w.hour} onChange={(e) => saveWeekly({ ...w, hour: Number(e.target.value) })}>
+            <select className="input w-auto" aria-label="자동 실행 시각" value={w.hour} onChange={(e) => saveWeekly({ ...w, hour: Number(e.target.value) })}>
               {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
           </div>
