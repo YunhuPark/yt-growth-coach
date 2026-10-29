@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
-import { normalizeStyle, type CaptionStyle } from "@/lib/captionStyle";
-import { errorResponse } from "@/lib/http";
-import { rendersDir, startRenderJob } from "@/lib/renderJobs";
-import { acceptSource, Rights, SourceError } from "@/lib/source";
+import { normalizeStyle, type CaptionStyle } from "@/lib/editor/captionStyle";
+import { errorResponse } from "@/lib/shared/http";
+import { rendersDir, startRenderJob } from "@/lib/editor/renderJobs";
+import { acceptSource, Rights, SourceError } from "@/lib/editor/source";
 
 const Options = z.object({
   layout: z.enum(["short", "long"]).default("short"),

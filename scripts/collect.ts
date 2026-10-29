@@ -1,5 +1,5 @@
 // Runs one collection without the web server, e.g. from Windows Task Scheduler:  npm run collect
-import { collectOnce } from "../src/lib/collector";
+import { collectOnce } from "../src/lib/channel/collector";
 
 async function main() {
   try {

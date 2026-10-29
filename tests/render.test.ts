@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { baseFilter, LAYOUTS, MAX_LONG_SEC, MAX_SHORT_SEC, probe, renderVideo } from "../src/lib/render";
+import { baseFilter, LAYOUTS, MAX_LONG_SEC, MAX_SHORT_SEC, probe, renderVideo } from "../src/lib/editor/render";
 
 const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 const FONTS = [

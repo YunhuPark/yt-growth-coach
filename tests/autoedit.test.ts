@@ -4,9 +4,9 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { analyzeVideo, parseLoudness, parseSceneTimes, parseSilences, pickFrameTimes, summarizeLoudness } from "../src/lib/analyzeVideo";
-import { describeAnalysis, planEdit, sanitizePlan, type RawPlan } from "../src/lib/autoEdit";
-import { joinSegments, probe, renderVideo } from "../src/lib/render";
+import { analyzeVideo, parseLoudness, parseSceneTimes, parseSilences, pickFrameTimes, summarizeLoudness } from "../src/lib/editor/analyzeVideo";
+import { describeAnalysis, planEdit, sanitizePlan, type RawPlan } from "../src/lib/editor/autoEdit";
+import { joinSegments, probe, renderVideo } from "../src/lib/editor/render";
 
 const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 const FONTS = [

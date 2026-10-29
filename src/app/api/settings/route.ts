@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { errorResponse } from "@/lib/http";
-import { loadSettings, saveSettings } from "@/lib/store";
+import { errorResponse } from "@/lib/shared/http";
+import { loadSettings, saveSettings } from "@/lib/shared/store";
 
 const Body = z.object({
   regionCode: z.string().length(2).toUpperCase(),

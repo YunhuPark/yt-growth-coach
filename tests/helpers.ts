@@ -1,4 +1,4 @@
-import type { VideoStat } from "../src/lib/youtube";
+import type { VideoStat } from "../src/lib/shared/youtube";
 
 /** Fixed "now" so age-dependent logic is deterministic. */
 export const NOW = Date.parse("2026-10-16T00:00:00Z");

@@ -6,18 +6,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it, mock } from "node:test";
 import { z } from "zod";
-import type { UsageRecord } from "../src/lib/store";
+import type { UsageRecord } from "../src/lib/shared/store";
 
 const originalCwd = process.cwd();
 let tmp: string;
-let usage: typeof import("../src/lib/usage");
-let store: typeof import("../src/lib/store");
+let usage: typeof import("../src/lib/shared/usage");
+let store: typeof import("../src/lib/shared/store");
 
 before(async () => {
   tmp = mkdtempSync(path.join(tmpdir(), "ytgc-usage-"));
   process.chdir(tmp);
-  store = await import("../src/lib/store");
-  usage = await import("../src/lib/usage");
+  store = await import("../src/lib/shared/store");
+  usage = await import("../src/lib/shared/usage");
 });
 after(() => {
   process.chdir(originalCwd);

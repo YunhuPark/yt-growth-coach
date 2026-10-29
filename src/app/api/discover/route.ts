@@ -1,7 +1,7 @@
-import { getAnalysis } from "@/lib/analysis";
-import { findSimilarChannels, profileChannel } from "@/lib/discover";
-import { errorResponse } from "@/lib/http";
-import { loadSettings } from "@/lib/store";
+import { getAnalysis } from "@/lib/channel/analysis";
+import { findSimilarChannels, profileChannel } from "@/lib/channel/discover";
+import { errorResponse } from "@/lib/shared/http";
+import { loadSettings } from "@/lib/shared/store";
 
 export const maxDuration = 180;
 

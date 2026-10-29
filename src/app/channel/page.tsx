@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Dashboard from "@/components/Dashboard";
-import SiteHeader from "@/components/SiteHeader";
+import Dashboard from "@/components/channel/Dashboard";
+import SiteHeader from "@/components/site/SiteHeader";
 
 export const metadata: Metadata = {
   title: "채널 분석",

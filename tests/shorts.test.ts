@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it, mock } from "node:test";
 
-let shorts: typeof import("../src/lib/shorts");
+let shorts: typeof import("../src/lib/shared/shorts");
 let tmp: string;
 const originalCwd = process.cwd();
 const requested: string[] = [];
@@ -27,7 +27,7 @@ before(async () => {
   tmp = mkdtempSync(path.join(tmpdir(), "ytgc-shorts-"));
   mkdirSync(path.join(tmp, ".data"));
   process.chdir(tmp);
-  shorts = await import("../src/lib/shorts");
+  shorts = await import("../src/lib/shared/shorts");
 });
 
 after(() => {

@@ -1,5 +1,5 @@
-import { previewFile } from "@/lib/preview";
-import { serveVideo } from "@/lib/serveVideo";
+import { previewFile } from "@/lib/editor/preview";
+import { serveVideo } from "@/lib/editor/serveVideo";
 
 export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("id") ?? "";

@@ -1,7 +1,7 @@
 # ClipLab design rules
 
 How the interface should look, for anyone (or any coding agent) changing it. The tokens live in `src/app/globals.css`; the brand name in
-`src/components/Brand.tsx`.
+`src/components/site/Brand`.
 
 ## Direction
 

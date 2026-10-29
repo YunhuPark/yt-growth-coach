@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { longformTarget, MIN_LONGFORM_SOURCE_SEC } from "../src/lib/autoEditJobs";
+import { longformTarget, MIN_LONGFORM_SOURCE_SEC } from "../src/lib/editor/autoEditJobs";
 
 describe("longformTarget", () => {
   it("aims at about half of the source", () => {

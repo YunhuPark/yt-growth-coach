@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { keepSegments } from "../src/lib/cutPlan";
-import type { Span } from "../src/lib/retention";
-import { previewRange, removalsFromCliffs, shortFromRewatch, spanSeconds } from "../src/lib/retentionActions";
+import { keepSegments } from "../src/lib/editor/cutPlan";
+import type { Span } from "../src/lib/editor/retention";
+import { previewRange, removalsFromCliffs, shortFromRewatch, spanSeconds } from "../src/lib/editor/retentionActions";
 
 const span = (fromSec: number | null, toSec: number | null, points = 10): Span => ({ fromPct: 40, toPct: 42, fromSec, toSec, points });
 

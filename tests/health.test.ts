@@ -5,12 +5,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { EMPTY_SOURCE, hasSource, sourceName, sourceReady } from "../src/components/source";
+import { EMPTY_SOURCE, hasSource, sourceName, sourceReady } from "../src/components/editor/source";
 
 const originalCwd = process.cwd();
 const SECRET = "sk-test-SECRET-VALUE-12345";
 let tmp: string;
-let health: typeof import("../src/lib/health");
+let health: typeof import("../src/lib/editor/health");
 const saved = { a: process.env.ANTHROPIC_API_KEY, y: process.env.YOUTUBE_API_KEY };
 
 before(async () => {
@@ -18,7 +18,7 @@ before(async () => {
   process.chdir(tmp);
   process.env.ANTHROPIC_API_KEY = SECRET;
   delete process.env.YOUTUBE_API_KEY;
-  health = await import("../src/lib/health");
+  health = await import("../src/lib/editor/health");
 });
 after(() => {
   process.chdir(originalCwd);

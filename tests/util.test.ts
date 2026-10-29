@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { describeForHighlights } from "../src/lib/highlights";
-import { describeSignals, type UrlSignals } from "../src/lib/urlPlan";
-import { safeSlice, wellFormed } from "../src/lib/util";
+import { describeForHighlights } from "../src/lib/editor/highlights";
+import { describeSignals, type UrlSignals } from "../src/lib/editor/urlPlan";
+import { safeSlice, wellFormed } from "../src/lib/shared/util";
 
 const hasLoneSurrogate = (s: string) => /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s);
 

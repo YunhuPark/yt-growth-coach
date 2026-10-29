@@ -17,7 +17,7 @@ import {
   type Box,
   type Look,
   type Sample,
-} from "../src/lib/reframe";
+} from "../src/lib/editor/reframe";
 
 const box = (x0: number, x1: number, score = 0.9, y0 = 0.2, y1 = 0.9): Box => ({ x0, x1, y0, y1, score });
 const labeled = (label: string, x0: number, x1: number, y0 = 0.2, y1 = 0.9, score = 0.9): Box => ({ x0, x1, y0, y1, score, label });

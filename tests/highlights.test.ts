@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { captionsFor, describeForHighlights, findHighlights, MAX_CANDIDATES, sanitizeHighlights, splitCaption, type RawHighlights } from "../src/lib/highlights";
+import { captionsFor, describeForHighlights, findHighlights, MAX_CANDIDATES, sanitizeHighlights, splitCaption, type RawHighlights } from "../src/lib/editor/highlights";
 
 const cand = (start: number, end: number, score: number, over: Partial<RawHighlights["candidates"][number]> = {}) => ({
   start, end, score, reason: "이유", hook: "훅", title: "제목", ...over,

@@ -1,4 +1,4 @@
-import type { LongPack, Pack } from "@/lib/package";
+import type { LongPack, Pack } from "@/lib/channel/package";
 
 export const fmt = (n: number | undefined, d = 0) =>
   n === undefined || Number.isNaN(n) ? "–" : n.toLocaleString("ko-KR", { maximumFractionDigits: d });

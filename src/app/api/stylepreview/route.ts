@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
-import { errorResponse } from "@/lib/http";
-import { makeStylePreview } from "@/lib/stylePreview";
+import { errorResponse } from "@/lib/shared/http";
+import { makeStylePreview } from "@/lib/editor/stylePreview";
 
 // One picture of how a caption style looks: GET /api/stylepreview?layout=short&preset=outline&position=bottom&scale=1
 export async function GET(req: Request) {

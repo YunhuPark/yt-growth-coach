@@ -16,8 +16,8 @@ import {
   soundGraph,
   transitionFilters,
   type EffectsOpts,
-} from "../src/lib/effects";
-import { probe, renderVideo } from "../src/lib/render";
+} from "../src/lib/editor/effects";
+import { probe, renderVideo } from "../src/lib/editor/render";
 
 process.env.USAGE_LOG = "off";
 

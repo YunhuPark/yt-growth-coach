@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { describe, it } from "node:test";
-import { ffmpegHasFilter, FFMPEG } from "../src/lib/render";
+import { ffmpegHasFilter, FFMPEG } from "../src/lib/editor/render";
 
 describe("ffmpegHasFilter", { skip: !existsSync(FFMPEG) ? "needs ffmpeg" : false }, () => {
   it("finds a filter the build has and says no to one it does not", async () => {

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import type { SavedPack, SavedRec } from "../src/lib/flows";
-import { RETRY_COOLDOWN_MS, runPrepare, runWeeklyIfDue, startPrepare, type PrepDeps, type PrepOptions, type PrepStep, type WeeklyDeps } from "../src/lib/prepare";
-import type { Idea } from "../src/lib/recommend";
-import type { PrepRecord, Weekly } from "../src/lib/store";
+import type { SavedPack, SavedRec } from "../src/lib/channel/flows";
+import { RETRY_COOLDOWN_MS, runPrepare, runWeeklyIfDue, startPrepare, type PrepDeps, type PrepOptions, type PrepStep, type WeeklyDeps } from "../src/lib/channel/prepare";
+import type { Idea } from "../src/lib/channel/recommend";
+import type { PrepRecord, Weekly } from "../src/lib/shared/store";
 
 const idea = (n: number): Idea => ({
   format: n % 2 ? "short" : "long",
@@ -200,7 +200,7 @@ describe("startPrepare", () => {
     assert.equal(second.live, first.live);
 
     release();
-    const { waitForPrepare } = await import("../src/lib/prepare");
+    const { waitForPrepare } = await import("../src/lib/channel/prepare");
     await waitForPrepare();
     assert.equal(first.live.status, "done");
     assert.equal(f.calls.filter((c) => c === "recommend").length, 1, "the work ran once, not twice");

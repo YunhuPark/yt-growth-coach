@@ -5,11 +5,11 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { detectSilences } from "../src/lib/analyzeVideo";
-import { getAutoJob, startAutoCut } from "../src/lib/autoEditJobs";
-import { keepSegments, planRemovals, DEFAULT_CUT_OPTIONS } from "../src/lib/cutPlan";
-import { probe, renderVideo } from "../src/lib/render";
-import { transcribeWords, type Transcriber } from "../src/lib/transcribe";
+import { detectSilences } from "../src/lib/editor/analyzeVideo";
+import { getAutoJob, startAutoCut } from "../src/lib/editor/autoEditJobs";
+import { keepSegments, planRemovals, DEFAULT_CUT_OPTIONS } from "../src/lib/editor/cutPlan";
+import { probe, renderVideo } from "../src/lib/editor/render";
+import { transcribeWords, type Transcriber } from "../src/lib/editor/transcribe";
 
 process.env.USAGE_LOG = "off"; // do not write measurements into the real .data folder
 
@@ -147,6 +147,8 @@ describe("the auto-cut job", { skip: !hasFfmpeg ? "needs the bundled ffmpeg" : f
     assert.ok(j.cut!.silences.some((s) => Math.abs(s.start - 3) < 0.2));
     assert.equal(j.cut!.fillersAnalyzed, true);
     assert.ok(j.cut!.words.some((w) => w.text === "음"));
+    // the job marks itself done and then cleans up, so give the cleanup a moment
+    for (let i = 0; i < 40 && existsSync(work); i++) await new Promise((r) => setTimeout(r, 50));
     assert.equal(existsSync(work), false, "the scratch folder is gone");
     assert.equal(existsSync(gappy), true, "a file given by path is never deleted");
   });

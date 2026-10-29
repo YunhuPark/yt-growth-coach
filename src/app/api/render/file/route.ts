@@ -1,5 +1,5 @@
 import path from "node:path";
-import { serveVideo } from "@/lib/serveVideo";
+import { serveVideo } from "@/lib/editor/serveVideo";
 
 /** Streams a finished render, with Range support so the <video> element can seek. */
 export async function GET(req: Request) {

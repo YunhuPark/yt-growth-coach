@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { errorResponse } from "@/lib/http";
-import { generatePackage } from "@/lib/flows";
-import { IdeaSchema } from "@/lib/recommend";
-import { loadPackages } from "@/lib/store";
+import { errorResponse } from "@/lib/shared/http";
+import { generatePackage } from "@/lib/channel/flows";
+import { IdeaSchema } from "@/lib/channel/recommend";
+import { loadPackages } from "@/lib/shared/store";
 
 export const maxDuration = 120;
 

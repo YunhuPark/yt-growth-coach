@@ -1,6 +1,6 @@
-import { errorResponse } from "@/lib/http";
-import { generateRecommendation } from "@/lib/flows";
-import { loadRecommendation } from "@/lib/store";
+import { errorResponse } from "@/lib/shared/http";
+import { generateRecommendation } from "@/lib/channel/flows";
+import { loadRecommendation } from "@/lib/shared/store";
 
 export const maxDuration = 300;
 

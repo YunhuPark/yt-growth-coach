@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isLongPack, LongPack, Pack } from "../src/lib/package";
+import { isLongPack, LongPack, Pack } from "../src/lib/channel/package";
 
 const longSample = {
   target_length_min: 10,

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { loadClipProfile } from "@/lib/channelProfile";
-import { errorResponse } from "@/lib/http";
-import { addMeta, timed, tracked } from "@/lib/usage";
-import { fetchFrames, fetchSignals, planFromSignals, UrlPlanError } from "@/lib/urlPlan";
+import { loadClipProfile } from "@/lib/channel/channelProfile";
+import { errorResponse } from "@/lib/shared/http";
+import { addMeta, timed, tracked } from "@/lib/shared/usage";
+import { fetchFrames, fetchSignals, planFromSignals, UrlPlanError } from "@/lib/editor/urlPlan";
 
 const Options = z.object({
   url: z.string().min(1).max(300),

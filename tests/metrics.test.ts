@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { median, patternInsights, scoreVideos, summarize } from "../src/lib/metrics";
+import { median, patternInsights, scoreVideos, summarize } from "../src/lib/channel/metrics";
 import { daysAgo, NOW, video } from "./helpers";
 
 describe("median", () => {

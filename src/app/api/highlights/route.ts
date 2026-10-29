@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
-import { autoEditDir, startHighlights } from "@/lib/autoEditJobs";
-import { loadClipProfile } from "@/lib/channelProfile";
-import { errorResponse } from "@/lib/http";
-import { acceptSource, Rights, SourceError } from "@/lib/source";
+import { autoEditDir, startHighlights } from "@/lib/editor/autoEditJobs";
+import { loadClipProfile } from "@/lib/channel/channelProfile";
+import { errorResponse } from "@/lib/shared/http";
+import { acceptSource, Rights, SourceError } from "@/lib/editor/source";
 
 const Options = z.object({
   topic: z.string().max(300).default(""),

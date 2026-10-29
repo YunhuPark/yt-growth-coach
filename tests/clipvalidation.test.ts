@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
-import { ranks, spearman, validateClips, type ClipLink, type VideoPerf } from "../src/lib/clipValidation";
+import { ranks, spearman, validateClips, type ClipLink, type VideoPerf } from "../src/lib/channel/clipValidation";
 
 describe("ranks and spearman", () => {
   it("gives tied values their average rank", () => {
@@ -72,16 +72,16 @@ describe("validateClips", () => {
 });
 
 describe("clip records", () => {
-  let clips: typeof import("../src/lib/clips");
-  let store: typeof import("../src/lib/store");
+  let clips: typeof import("../src/lib/channel/clips");
+  let store: typeof import("../src/lib/shared/store");
   let tmp: string;
   const originalCwd = process.cwd();
 
   before(async () => {
     tmp = mkdtempSync(path.join(tmpdir(), "ytgc-clips-"));
     process.chdir(tmp);
-    store = await import("../src/lib/store");
-    clips = await import("../src/lib/clips");
+    store = await import("../src/lib/shared/store");
+    clips = await import("../src/lib/channel/clips");
   });
   after(() => {
     process.chdir(originalCwd);

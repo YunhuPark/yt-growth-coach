@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cutStats, DEFAULT_CUT_OPTIONS, fillerRemovals, keepSegments, planRemovals, silenceRemovals, type Removal } from "../src/lib/cutPlan";
+import { cutStats, DEFAULT_CUT_OPTIONS, fillerRemovals, keepSegments, planRemovals, silenceRemovals, type Removal } from "../src/lib/editor/cutPlan";
 
 describe("silenceRemovals", () => {
   it("cuts each long-enough silence but leaves half of the pause kept at each end", () => {

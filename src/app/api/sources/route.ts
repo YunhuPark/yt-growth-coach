@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { errorResponse } from "@/lib/http";
-import { lookupSources } from "@/lib/flows";
-import { IdeaSchema } from "@/lib/recommend";
+import { errorResponse } from "@/lib/shared/http";
+import { lookupSources } from "@/lib/channel/flows";
+import { IdeaSchema } from "@/lib/channel/recommend";
 
 export const maxDuration = 120;
 

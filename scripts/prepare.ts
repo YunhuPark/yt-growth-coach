@@ -1,7 +1,7 @@
 // Runs the one-click preparation without the web server:
 //   npm run prep                 always run it
 //   npm run prep -- --if-due     only run it if the weekly schedule says it is due (for Windows Task Scheduler)
-import { currentPrepare, runWeeklyIfDue, startPrepare, waitForPrepare } from "../src/lib/prepare";
+import { currentPrepare, runWeeklyIfDue, startPrepare, waitForPrepare } from "../src/lib/channel/prepare";
 
 async function main() {
   try {

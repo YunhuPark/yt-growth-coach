@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { authUrl } from "@/lib/google";
-import { errorResponse } from "@/lib/http";
+import { authUrl } from "@/lib/shared/google";
+import { errorResponse } from "@/lib/shared/http";
 
 export async function GET() {
   try {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { matchStats } from "../src/lib/discover";
-import type { RawVideo } from "../src/lib/youtube";
+import { matchStats } from "../src/lib/channel/discover";
+import type { RawVideo } from "../src/lib/shared/youtube";
 import { daysAgo, NOW } from "./helpers";
 
 const raw = (i: number, over: Partial<RawVideo> = {}): RawVideo => ({

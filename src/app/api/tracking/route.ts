@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { getAnalysis } from "@/lib/analysis";
-import { errorResponse } from "@/lib/http";
-import { refineFormats } from "@/lib/shorts";
-import { loadBaseline, loadRecommendation, loadTracking, saveTracking, type TrackEntry } from "@/lib/store";
-import { evaluate, learnFromLevers, LEVERS, summarizeBaseline } from "@/lib/tracking";
-import { mapPool, parseVideoId } from "@/lib/util";
-import { videoDetails } from "@/lib/youtube";
+import { getAnalysis } from "@/lib/channel/analysis";
+import { errorResponse } from "@/lib/shared/http";
+import { refineFormats } from "@/lib/shared/shorts";
+import { loadBaseline, loadRecommendation, loadTracking, saveTracking, type TrackEntry } from "@/lib/shared/store";
+import { evaluate, learnFromLevers, LEVERS, summarizeBaseline } from "@/lib/channel/tracking";
+import { mapPool, parseVideoId } from "@/lib/shared/util";
+import { videoDetails } from "@/lib/shared/youtube";
 
 export const maxDuration = 60;
 

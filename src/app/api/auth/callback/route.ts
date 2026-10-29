@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { clearCache } from "@/lib/analysis";
-import { exchangeCode } from "@/lib/google";
-import { errorResponse } from "@/lib/http";
+import { clearCache } from "@/lib/channel/analysis";
+import { exchangeCode } from "@/lib/shared/google";
+import { errorResponse } from "@/lib/shared/http";
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = req.nextUrl;

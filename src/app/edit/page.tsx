@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Editor from "@/components/Editor";
+import Editor from "@/components/editor/Editor";
 
 export const metadata: Metadata = {
   title: "영상 편집 도우미",

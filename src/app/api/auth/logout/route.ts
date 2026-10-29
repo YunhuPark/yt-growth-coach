@@ -1,5 +1,5 @@
-import { clearCache } from "@/lib/analysis";
-import { clearTokens } from "@/lib/store";
+import { clearCache } from "@/lib/channel/analysis";
+import { clearTokens } from "@/lib/shared/store";
 
 export async function POST() {
   await clearTokens();

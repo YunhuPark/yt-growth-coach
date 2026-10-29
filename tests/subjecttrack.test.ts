@@ -5,12 +5,12 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { getAutoJob, startAutoReframe } from "../src/lib/autoEditJobs";
-import { usedRanges, withAutoReframe } from "../src/lib/autoReframe";
-import type { Detector } from "../src/lib/subjectDetector";
-import { probe, renderVideo } from "../src/lib/render";
-import { assignTracks, samplesFromLooks } from "../src/lib/reframe";
-import { mergeRanges, sampleTimes, stepFor, trackSubject, type Track } from "../src/lib/subjectTrack";
+import { getAutoJob, startAutoReframe } from "../src/lib/editor/autoEditJobs";
+import { usedRanges, withAutoReframe } from "../src/lib/editor/autoReframe";
+import type { Detector } from "../src/lib/editor/subjectDetector";
+import { probe, renderVideo } from "../src/lib/editor/render";
+import { assignTracks, samplesFromLooks } from "../src/lib/editor/reframe";
+import { mergeRanges, sampleTimes, stepFor, trackSubject, type Track } from "../src/lib/editor/subjectTrack";
 
 process.env.USAGE_LOG = "off";
 

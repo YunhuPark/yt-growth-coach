@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getTrends } from "@/lib/analysis";
-import { errorResponse } from "@/lib/http";
+import { getTrends } from "@/lib/channel/analysis";
+import { errorResponse } from "@/lib/shared/http";
 
 export async function GET(req: NextRequest) {
   try {

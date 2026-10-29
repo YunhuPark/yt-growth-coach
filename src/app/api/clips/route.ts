@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { getAnalysis } from "@/lib/analysis";
-import { deleteClip, LinkError, linkClip, registerClip } from "@/lib/clips";
-import { validateClips } from "@/lib/clipValidation";
-import { errorResponse } from "@/lib/http";
-import { loadClips } from "@/lib/store";
+import { getAnalysis } from "@/lib/channel/analysis";
+import { deleteClip, LinkError, linkClip, registerClip } from "@/lib/channel/clips";
+import { validateClips } from "@/lib/channel/clipValidation";
+import { errorResponse } from "@/lib/shared/http";
+import { loadClips } from "@/lib/shared/store";
 
 const Register = z.object({
   id: z.string().regex(/^[a-f0-9]{16}$/),

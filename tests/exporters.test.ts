@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { planCues, safeFileName, srtTime, timecode, toCutList, toEdl, toSrt } from "../src/lib/exporters";
+import { planCues, safeFileName, srtTime, timecode, toCutList, toEdl, toSrt } from "../src/lib/editor/exporters";
 
 describe("srtTime", () => {
   it("writes HH:MM:SS,mmm", () => {

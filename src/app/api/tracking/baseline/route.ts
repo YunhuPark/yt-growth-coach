@@ -1,6 +1,6 @@
-import { getAnalysis } from "@/lib/analysis";
-import { errorResponse } from "@/lib/http";
-import { getBaseline, summarizeBaseline } from "@/lib/tracking";
+import { getAnalysis } from "@/lib/channel/analysis";
+import { errorResponse } from "@/lib/shared/http";
+import { getBaseline, summarizeBaseline } from "@/lib/channel/tracking";
 
 export const maxDuration = 300;
 

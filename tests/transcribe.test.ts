@@ -4,8 +4,8 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { describeAnalysis, planEdit, type RawPlan } from "../src/lib/autoEdit";
-import { cleanTranscript, extractAudio, snapToSpeech, speechRegions, transcribeVideo } from "../src/lib/transcribe";
+import { describeAnalysis, planEdit, type RawPlan } from "../src/lib/editor/autoEdit";
+import { cleanTranscript, extractAudio, snapToSpeech, speechRegions, transcribeVideo } from "../src/lib/editor/transcribe";
 
 const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 

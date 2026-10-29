@@ -12,7 +12,7 @@ const hasFfmpeg = existsSync(FFMPEG);
 
 describe("previewId", () => {
   it("is stable for the same file and range and changes with the file, the time stamp or the range", async () => {
-    const { previewId } = await import("../src/lib/preview");
+    const { previewId } = await import("../src/lib/editor/preview");
     const a = previewId("/x/a.mp4", 100, 5, 20);
     assert.match(a, /^[a-f0-9]{16}$/);
     assert.equal(a, previewId("/x/a.mp4", 100, 5, 20));
@@ -25,8 +25,8 @@ describe("previewId", () => {
 describe("makePreview", { skip: !hasFfmpeg ? "needs the bundled ffmpeg" : false, timeout: 120_000 }, () => {
   let tmp: string;
   let src: string;
-  let mod: typeof import("../src/lib/preview");
-  let render: typeof import("../src/lib/render");
+  let mod: typeof import("../src/lib/editor/preview");
+  let render: typeof import("../src/lib/editor/render");
 
   before(async () => {
     tmp = mkdtempSync(path.join(tmpdir(), "ytgc-preview-"));
@@ -38,8 +38,8 @@ describe("makePreview", { skip: !hasFfmpeg ? "needs the bundled ffmpeg" : false,
     ]);
     assert.equal(r.status, 0, String(r.stderr));
     process.chdir(tmp);
-    mod = await import("../src/lib/preview");
-    render = await import("../src/lib/render");
+    mod = await import("../src/lib/editor/preview");
+    render = await import("../src/lib/editor/render");
   });
   after(() => {
     process.chdir(originalCwd);

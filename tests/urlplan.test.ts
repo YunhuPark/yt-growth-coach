@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildClipProfile } from "../src/lib/clipProfileBuild";
-import { describeForHighlights } from "../src/lib/highlights";
-import { scoreVideos } from "../src/lib/metrics";
+import { buildClipProfile } from "../src/lib/channel/clipProfileBuild";
+import { describeForHighlights } from "../src/lib/editor/highlights";
+import { scoreVideos } from "../src/lib/channel/metrics";
 import {
   buildBrief,
   buildLongform,
@@ -18,7 +18,7 @@ import {
   UrlPlanError,
   type RawUrlAnalysis,
   type UrlSignals,
-} from "../src/lib/urlPlan";
+} from "../src/lib/editor/urlPlan";
 import { NOW, video } from "./helpers";
 
 const hot = (sec: number, likes: number, text = `t${sec}`) => ({ sec, likes, text });

@@ -1,5 +1,5 @@
-import { errorResponse } from "@/lib/http";
-import { checkHealth } from "@/lib/health";
+import { errorResponse } from "@/lib/shared/http";
+import { checkHealth } from "@/lib/editor/health";
 
 export async function GET() {
   try {

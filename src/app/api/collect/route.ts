@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { collectOnce } from "@/lib/collector";
-import { errorResponse } from "@/lib/http";
-import { loadCollector, loadEvents, saveEvents } from "@/lib/store";
+import { collectOnce } from "@/lib/channel/collector";
+import { errorResponse } from "@/lib/shared/http";
+import { loadCollector, loadEvents, saveEvents } from "@/lib/shared/store";
 
 export const maxDuration = 300;
 

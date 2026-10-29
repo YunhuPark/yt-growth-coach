@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import type { BaselineFile, FrozenResult, TrackEntry } from "../src/lib/store";
+import type { BaselineFile, FrozenResult, TrackEntry } from "../src/lib/shared/store";
 import {
   cumulative,
   evaluate,
@@ -15,7 +15,7 @@ import {
   type CheckpointResult,
   type DayRow,
   type Evaluated,
-} from "../src/lib/tracking";
+} from "../src/lib/channel/tracking";
 import { DAY, daysAgo, NOW } from "./helpers";
 
 const approx = (a: number | undefined, b: number, eps = 0.01) =>

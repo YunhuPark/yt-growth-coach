@@ -4,8 +4,8 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { lengthMismatch, MISMATCH_LIMIT, rangeCaptions } from "../src/lib/rangeCaptions";
-import { extractAudio } from "../src/lib/transcribe";
+import { lengthMismatch, MISMATCH_LIMIT, rangeCaptions } from "../src/lib/editor/rangeCaptions";
+import { extractAudio } from "../src/lib/editor/transcribe";
 
 const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 

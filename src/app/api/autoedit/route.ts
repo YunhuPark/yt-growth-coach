@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
-import { autoEditDir, startAutoEdit } from "@/lib/autoEditJobs";
-import { errorResponse } from "@/lib/http";
-import { acceptSource, Rights, SourceError } from "@/lib/source";
+import { autoEditDir, startAutoEdit } from "@/lib/editor/autoEditJobs";
+import { errorResponse } from "@/lib/shared/http";
+import { acceptSource, Rights, SourceError } from "@/lib/editor/source";
 
 const Options = z.object({
   layout: z.enum(["short", "long"]).default("short"),

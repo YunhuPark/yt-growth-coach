@@ -12,7 +12,7 @@ const FONTS = ["C:/Windows/Fonts/malgunbd.ttf", "C:/Windows/Fonts/malgun.ttf", "
 
 describe("styleKey", () => {
   it("is stable for the same layout and style and differs when anything changes", async () => {
-    const { styleKey } = await import("../src/lib/stylePreview");
+    const { styleKey } = await import("../src/lib/editor/stylePreview");
     const base = { preset: "box", position: "bottom", scale: 1 } as const;
     const k = styleKey("short", base);
     assert.match(k, /^[a-f0-9]{16}$/);
@@ -26,12 +26,12 @@ describe("styleKey", () => {
 
 describe("makeStylePreview", { skip: !existsSync(FFMPEG) || !FONTS.some((f) => existsSync(f)) ? "needs the bundled ffmpeg and a Korean font" : false, timeout: 120_000 }, () => {
   let tmp: string;
-  let mod: typeof import("../src/lib/stylePreview");
+  let mod: typeof import("../src/lib/editor/stylePreview");
 
   before(async () => {
     tmp = mkdtempSync(path.join(tmpdir(), "ytgc-stylepic-"));
     process.chdir(tmp);
-    mod = await import("../src/lib/stylePreview");
+    mod = await import("../src/lib/editor/stylePreview");
   });
   after(() => {
     process.chdir(originalCwd);

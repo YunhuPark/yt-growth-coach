@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cleanReason } from "../src/lib/discover";
-import { wrap } from "../src/lib/render";
-import { classifySource } from "../src/lib/sources";
-import { parseVideoId } from "../src/lib/util";
-import { extractHashtags, findTimestamps, parseDuration } from "../src/lib/youtube";
+import { cleanReason } from "../src/lib/channel/discover";
+import { wrap } from "../src/lib/editor/render";
+import { classifySource } from "../src/lib/channel/sources";
+import { parseVideoId } from "../src/lib/shared/util";
+import { extractHashtags, findTimestamps, parseDuration } from "../src/lib/shared/youtube";
 
 describe("parseDuration", () => {
   it("reads ISO 8601 durations", () => {

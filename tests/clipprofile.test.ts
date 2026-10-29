@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { describeProfile, lengthFit } from "../src/lib/clipProfile";
-import { buildClipProfile } from "../src/lib/clipProfileBuild";
-import { findHighlights } from "../src/lib/highlights";
-import { scoreVideos } from "../src/lib/metrics";
+import { describeProfile, lengthFit } from "../src/lib/editor/clipProfile";
+import { buildClipProfile } from "../src/lib/channel/clipProfileBuild";
+import { findHighlights } from "../src/lib/editor/highlights";
+import { scoreVideos } from "../src/lib/channel/metrics";
 import { NOW, video } from "./helpers";
 
 // Shorts whose views rise with their index, so the score order is known: higher i = better.

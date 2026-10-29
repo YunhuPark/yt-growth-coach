@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { errorResponse } from "@/lib/http";
-import { makePreview } from "@/lib/preview";
-import { acceptSource, Rights, SourceError } from "@/lib/source";
+import { errorResponse } from "@/lib/shared/http";
+import { makePreview } from "@/lib/editor/preview";
+import { acceptSource, Rights, SourceError } from "@/lib/editor/source";
 
 const Options = z.object({
   sourcePath: z.string().min(1).max(500),

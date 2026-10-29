@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { errorResponse } from "@/lib/http";
-import { currentPrepare, startPrepare } from "@/lib/prepare";
-import { nextDue } from "@/lib/schedule";
-import { loadPrep, loadSettings } from "@/lib/store";
+import { errorResponse } from "@/lib/shared/http";
+import { currentPrepare, startPrepare } from "@/lib/channel/prepare";
+import { nextDue } from "@/lib/channel/schedule";
+import { loadPrep, loadSettings } from "@/lib/shared/store";
 
 export const maxDuration = 60;
 

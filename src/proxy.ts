@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DEMO_REFUSAL } from "@/lib/demo";
+import { DEMO_REFUSAL } from "@/lib/shared/demo";
 
 /**
  * In the public demo (NEXT_PUBLIC_DEMO=1) nothing that needs the server to work for a visitor is available: every API route answers

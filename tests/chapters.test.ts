@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sanitizePlan, type RawPlan } from "../src/lib/autoEdit";
-import { chapterLines, formatClock, mapChapters, withChapterCards } from "../src/lib/chapters";
+import { sanitizePlan, type RawPlan } from "../src/lib/editor/autoEdit";
+import { chapterLines, formatClock, mapChapters, withChapterCards } from "../src/lib/editor/chapters";
 
 describe("formatClock", () => {
   it("writes m:ss, and h:mm:ss from an hour", () => {

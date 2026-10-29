@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseCues, parseNumber, parseRetention, placeOf, readRetention, saidAt, valueAt, type Curve } from "../src/lib/retention";
+import { parseCues, parseNumber, parseRetention, placeOf, readRetention, saidAt, valueAt, type Curve } from "../src/lib/editor/retention";
 
 /** A curve over 0-100 % of the video, one point per percent, built from a function of the position. */
 const curve = (f: (pct: number) => number, unit: Curve["unit"] = "percent", scale = 1): Curve => ({

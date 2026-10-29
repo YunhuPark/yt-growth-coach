@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isDue, lastDue, nextDue } from "../src/lib/schedule";
-import type { Weekly } from "../src/lib/store";
+import { isDue, lastDue, nextDue } from "../src/lib/channel/schedule";
+import type { Weekly } from "../src/lib/shared/store";
 
 // All dates are built in local time, the same clock the schedule uses.
 const at = (month: number, day: number, hour = 0, min = 0) => new Date(2026, month - 1, day, hour, min, 0, 0);

@@ -1,4 +1,4 @@
-import { getAutoJob } from "@/lib/autoEditJobs";
+import { getAutoJob } from "@/lib/editor/autoEditJobs";
 
 export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("id") ?? "";

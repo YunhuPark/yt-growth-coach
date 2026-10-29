@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { captionHasBadTimes, editedCaptions, toCaps } from "../src/lib/captionEdit";
+import { captionHasBadTimes, editedCaptions, toCaps } from "../src/lib/editor/captionEdit";
 
 describe("editedCaptions", () => {
   it("turns typed text into numbers and trims it", () => {

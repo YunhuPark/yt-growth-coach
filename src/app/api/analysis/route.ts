@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
-import { getAnalysis } from "@/lib/analysis";
-import { errorResponse } from "@/lib/http";
-import { loadTokens } from "@/lib/store";
+import { getAnalysis } from "@/lib/channel/analysis";
+import { errorResponse } from "@/lib/shared/http";
+import { loadTokens } from "@/lib/shared/store";
 
 export async function GET(req: NextRequest) {
   try {

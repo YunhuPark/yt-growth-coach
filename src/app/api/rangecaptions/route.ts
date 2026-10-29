@@ -2,11 +2,11 @@ import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { autoEditDir } from "@/lib/autoEditJobs";
-import { errorResponse } from "@/lib/http";
-import { rangeCaptions } from "@/lib/rangeCaptions";
-import { tracked } from "@/lib/usage";
-import { acceptSource, Rights, SourceError } from "@/lib/source";
+import { autoEditDir } from "@/lib/editor/autoEditJobs";
+import { errorResponse } from "@/lib/shared/http";
+import { rangeCaptions } from "@/lib/editor/rangeCaptions";
+import { tracked } from "@/lib/shared/usage";
+import { acceptSource, Rights, SourceError } from "@/lib/editor/source";
 
 const Options = z.object({
   start: z.number().min(0).max(14400),

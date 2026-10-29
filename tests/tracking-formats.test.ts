@@ -6,14 +6,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it, mock } from "node:test";
-import type { Scored } from "../src/lib/metrics";
-import type { BaselineFile, BaselineSet, TrackEntry } from "../src/lib/store";
+import type { Scored } from "../src/lib/channel/metrics";
+import type { BaselineFile, BaselineSet, TrackEntry } from "../src/lib/shared/store";
 
 const DAY = 86400_000;
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 
-let tracking: typeof import("../src/lib/tracking");
-let store: typeof import("../src/lib/store");
+let tracking: typeof import("../src/lib/channel/tracking");
+let store: typeof import("../src/lib/shared/store");
 let tmp: string;
 const originalCwd = process.cwd();
 let analyticsCalls = 0;
@@ -36,8 +36,8 @@ before(async () => {
     JSON.stringify({ access_token: "fake", refresh_token: "fake", expires_at: Date.now() + 3600_000 }),
   );
   process.chdir(tmp);
-  store = await import("../src/lib/store");
-  tracking = await import("../src/lib/tracking");
+  store = await import("../src/lib/shared/store");
+  tracking = await import("../src/lib/channel/tracking");
 });
 
 after(() => {

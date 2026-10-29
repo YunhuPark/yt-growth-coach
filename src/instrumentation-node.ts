@@ -16,7 +16,7 @@ function scheduleCollection() {
 
   const tick = async () => {
     try {
-      const { collectOnce } = await import("./lib/collector");
+      const { collectOnce } = await import("./lib/channel/collector");
       await collectOnce(); // records its own errors in .data/collector.json
     } catch {
       /* never let a failed collection take the server down */
@@ -33,7 +33,7 @@ function scheduleWeekly() {
 
   const tick = async () => {
     try {
-      const { runWeeklyIfDue } = await import("./lib/prepare");
+      const { runWeeklyIfDue } = await import("./lib/channel/prepare");
       await runWeeklyIfDue(); // also catches up right after start if the computer was off at the scheduled time
     } catch {
       /* a failed check must never take the server down */

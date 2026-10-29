@@ -5,8 +5,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { DEFAULT_STYLE, normalizeStyle, PRESETS, styledText, type CaptionStyle } from "../src/lib/captionStyle";
-import { LAYOUTS, renderVideo } from "../src/lib/render";
+import { DEFAULT_STYLE, normalizeStyle, PRESETS, styledText, type CaptionStyle } from "../src/lib/editor/captionStyle";
+import { LAYOUTS, renderVideo } from "../src/lib/editor/render";
 
 const SHORT = LAYOUTS.short;
 
