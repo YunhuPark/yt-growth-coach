@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { DEMO } from "@/lib/demo";
 import Brand, { BRAND } from "./Brand";
 import Icon, { type IconName } from "./Icon";
 import SiteHeader from "./SiteHeader";
@@ -25,6 +26,34 @@ const TRUST: { icon: IconName; title: string; text: string }[] = [
   { icon: "timeline", title: "AI 비용이 눈에 보입니다", text: "AI를 쓰는 작업은 표시가 붙고, 호출마다 토큰과 시간을 기록해 작업당 원가를 직접 확인할 수 있습니다." },
   { icon: "check", title: "권리 확인이 먼저", text: "방송·타사 영상을 내려받는 기능은 없습니다. 내가 찍었거나 허락받은 영상에만 쓰도록 확인을 거칩니다." },
 ];
+
+const RUN_STEPS = [
+  "git clone https://github.com/YunhuPark/yt-growth-coach.git",
+  "cd yt-growth-coach",
+  "docker build -t cliplab .",
+  "docker run --rm -p 3000:3000 -v cliplab-data:/app/.data cliplab",
+];
+
+/** How to run the whole tool on one's own computer; shown on the public demo, which only runs what needs no server. */
+function RunLocally() {
+  return (
+    <section id="run" className="mx-auto w-full max-w-6xl scroll-mt-16 px-4 py-20 sm:px-6">
+      <Eyebrow n="05" text="직접 실행하기" />
+      <h2 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">전체 기능은 내 컴퓨터에서 실행하세요</h2>
+      <p className="mt-4 max-w-2xl text-lg text-muted">
+        이 공개 데모에서는 시청 지속 분석만 쓸 수 있습니다. 컷·자막·세로 변환 같은 영상 처리는 영상이 서버에 올라가지 않도록 내 컴퓨터에서 돌아가게 만들었고, AI 기능은 내 API 키로 호출합니다.
+      </p>
+      <pre className="mt-8 overflow-x-auto rounded-[10px] border border-line bg-card p-5 font-mono text-sm leading-7" aria-label="실행 명령">
+        {RUN_STEPS.join("\n")}
+      </pre>
+      <ul className="mt-6 grid gap-6 text-sm text-muted md:grid-cols-3">
+        <li><b className="text-foreground">Docker가 필요합니다.</b> 처음 빌드는 몇 분 걸리고, 이미지에 영상 처리 도구(ffmpeg)와 한글 글꼴이 들어 있습니다.</li>
+        <li><b className="text-foreground">실행하면 http://localhost:3000</b> 에서 열립니다. 만든 결과와 설정은 <code>cliplab-data</code> 저장 공간에 남습니다.</li>
+        <li><b className="text-foreground">AI 기능을 쓰려면</b> 실행할 때 <code>-e ANTHROPIC_API_KEY=내키</code>를 덧붙이세요. 음성 인식·사람 찾기 모델은 처음 쓸 때 한 번 내려받습니다.</li>
+      </ul>
+    </section>
+  );
+}
 
 /** A small label above a heading: a number in the film-timecode style, then what the section is. */
 function Eyebrow({ n, text }: { n: string; text: string }) {
@@ -76,6 +105,11 @@ export default function Landing() {
                 <a href="#how" className="btn !px-6 !py-3.5 !text-base">사용 방법 보기</a>
               </div>
               <p className="text-sm font-medium text-muted">로그인 없음 · 영상은 내 컴퓨터에서 처리</p>
+              {DEMO && (
+                <p className="callout max-w-xl text-sm">
+                  <b>공개 데모</b> — 브라우저 안에서만 계산하는 <b>시청 지속 분석</b>을 바로 써 볼 수 있어요. 영상 처리와 AI 기능은 <a className="font-semibold underline underline-offset-4" href="#run">내 컴퓨터에서 실행</a>하면 모두 쓸 수 있습니다.
+                </p>
+              )}
             </div>
 
             <Shot src="/shots/cut.webp" w={1712} h={1160} alt="무음·군말 자르기: 자를 곳 목록과 원본·결과 길이" caption="실제 화면 · 무음·군말 자르기 결과 (테스트 영상)" priority />
@@ -146,6 +180,8 @@ export default function Landing() {
           </div>
         </section>
 
+        {DEMO && <RunLocally />}
+
         {/* closing call: the one dark band on the page */}
         <section className="bg-foreground text-background">
           <div className="sprockets text-background" aria-hidden />
@@ -165,7 +201,7 @@ export default function Landing() {
           <p>© {BRAND} · 내 채널을 키우는 편집 도구</p>
           <nav className="flex gap-5" aria-label="바로가기">
             <Link href="/edit" className="inline-block py-2 hover:text-foreground">영상 편집</Link>
-            <Link href="/channel" className="inline-block py-2 hover:text-foreground">채널 분석</Link>
+            {!DEMO && <Link href="/channel" className="inline-block py-2 hover:text-foreground">채널 분석</Link>}
             <a href="https://github.com/YunhuPark/yt-growth-coach" className="inline-block py-2 hover:text-foreground">GitHub</a>
           </nav>
         </div>

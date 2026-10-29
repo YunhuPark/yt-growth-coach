@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseCues, parseNumber, parseRetention, readRetention, saidAt, type Curve, type Reading, type Span } from "@/lib/retention";
 import { keepSegments } from "@/lib/cutPlan";
+import { DEMO } from "@/lib/demo";
 import { previewRange, removalsFromCliffs, shortFromRewatch, SHORT_LENGTHS } from "@/lib/retentionActions";
 import { useCaptionStyle } from "./captionStyleContext";
 import { useEffectsOption } from "./effectsContext";
@@ -283,10 +284,10 @@ export default function RetentionTool({ source }: { source: SourceState }) {
             </div>
           )}
 
-          {!videoReady && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
+          {!DEMO && !videoReady && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
             <p className="callout text-sm text-muted">영상 파일을 올리면(앞 단계) 이 구간들을 바로 재생해 보고, 급락 구간을 뺀 영상이나 다시 돌려 본 구간의 쇼츠를 만들 수 있어요. 영상 길이도 알아야 하니 위에서 함께 넣어 주세요.</p>
           )}
-          {videoReady && r.durationSec === null && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
+          {!DEMO && videoReady && r.durationSec === null && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
             <p className="callout text-sm text-muted">영상 길이(예: 600 또는 10:00)를 넣고 다시 분석하면 구간을 재생하고 영상을 만들 수 있어요. 파일을 직접 올리면 길이가 자동으로 들어갑니다.</p>
           )}
           {videoReady && r.durationSec !== null && r.cliffs.length > 0 && (

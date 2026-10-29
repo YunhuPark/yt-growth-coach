@@ -9,7 +9,7 @@
     "lint": "eslint",
     "collect": "tsx scripts/collect.ts",
     "test": "tsx --test \"tests/**/*.test.ts\"",
-    "prepare": "tsx scripts/prepare.ts"
+    "prep": "tsx scripts/prepare.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

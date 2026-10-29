@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { DEMO } from "@/lib/demo";
 import Brand from "./Brand";
 
 const LINKS: { href: string; label: string; id: "edit" | "channel" }[] = [
@@ -17,7 +18,7 @@ export default function SiteHeader({ active, children }: { active?: "edit" | "ch
       <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
         <Brand />
         <nav className="hidden items-center gap-5 sm:flex" aria-label="주요 메뉴">
-          {LINKS.map((l) => (
+          {LINKS.filter((l) => !DEMO || l.id !== "channel").map((l) => (
             <Link
               key={l.id}
               href={l.href}

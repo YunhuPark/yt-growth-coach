@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # a Korean font lets the render tests run instead of being skipped
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-nanum
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      # the public demo is the same code built with the flag on; it must keep building
+      - run: NEXT_PUBLIC_DEMO=1 npm run build
