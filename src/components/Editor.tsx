@@ -20,12 +20,12 @@ import UrlPlan from "./UrlPlan";
 type Tool = "shorts" | "auto" | "cut" | "frame" | "retention" | "url";
 type StepId = "task" | "video" | "style" | "run";
 
-const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean }[] = [
+const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean; /** the video can be skipped */ optionalVideo?: boolean }[] = [
   { id: "shorts", icon: "clapper", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑아 쇼츠로 만듭니다.", uses: "ai", needsVideo: true },
   { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
   { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
   { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
-  { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 영상 파일도 AI도 필요 없어요.", uses: "local", needsVideo: false },
+  { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 영상이 있으면 그 구간을 보고 바로 편집본도 만들어요.", uses: "local", needsVideo: true, optionalVideo: true },
   { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
 ];
 
@@ -67,14 +67,14 @@ export default function Editor() {
     const i = steps.indexOf(s);
     if (i <= at) return true;
     if (!tool) return false;
-    return !steps.slice(0, i).includes("video") || ready;
+    return !steps.slice(0, i).includes("video") || ready || !!tool.optionalVideo;
   };
   const back = at > 0 ? () => go(steps[at - 1]) : undefined;
   const next = at < steps.length - 1 ? () => go(steps[at + 1]) : undefined;
 
   const nextBlocked: Record<StepId, string | null> = {
     task: tool ? null : "먼저 하고 싶은 작업을 하나 골라 주세요.",
-    video: ready ? null : "영상을 올리고 권리 확인을 마치면 다음으로 갈 수 있어요.",
+    video: ready || tool?.optionalVideo ? null : "영상을 올리고 권리 확인을 마치면 다음으로 갈 수 있어요.",
     style: null,
     run: null,
   };
@@ -115,7 +115,7 @@ export default function Editor() {
                       <span className="text-sm text-muted">{t.blurb}</span>
                       <span className="mt-auto flex flex-wrap gap-1.5 pt-3">
                         <span className={t.uses === "ai" ? "chip-ai" : "chip-local"}>{t.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}</span>
-                        <span className="chip">{t.needsVideo ? "영상 파일 필요" : "파일 없이 가능"}</span>
+                        <span className="chip">{t.optionalVideo ? "영상 파일 선택" : t.needsVideo ? "영상 파일 필요" : "파일 없이 가능"}</span>
                       </span>
                     </button>
                   );
@@ -130,9 +130,9 @@ export default function Editor() {
 
             {/* 2. the video */}
             <Pane hidden={step !== "video"}>
-              <Heading n={2} total={steps.length} title="편집할 영상을 올려 주세요" sub={tool ? `${tool.title}에 쓸 영상이에요. 한 번 올리면 이후 단계에서 계속 이 영상을 씁니다.` : ""} />
+              <Heading n={2} total={steps.length} title="편집할 영상을 올려 주세요" sub={tool ? (tool.optionalVideo ? `${tool.title}에는 영상이 꼭 필요하지 않아요. 올리면 이탈 구간을 바로 재생하고 편집본·쇼츠를 만들 수 있고, 없으면 건너뛰어도 됩니다.` : `${tool.title}에 쓸 영상이에요. 한 번 올리면 이후 단계에서 계속 이 영상을 씁니다.`) : ""} />
               <SourcePanel source={source} onChange={setSource} hideTitle />
-              <StepNav back={back} next={next} nextLabel="다음: 꾸미기" blocked={nextBlocked.video} />
+              <StepNav back={back} next={next} nextLabel={tool?.optionalVideo && !ready ? "영상 없이 다음: 꾸미기" : "다음: 꾸미기"} blocked={nextBlocked.video} />
             </Pane>
 
             {/* 3. how it should look */}
@@ -172,7 +172,7 @@ export default function Editor() {
                   {tool.id === "auto" && <AutoEdit key={layout} topic="" layout={layout} source={source} />}
                   {tool.id === "cut" && <AutoCut source={source} />}
                   {tool.id === "frame" && <AutoReframe source={source} />}
-                  {tool.id === "retention" && <RetentionTool />}
+                  {tool.id === "retention" && <RetentionTool source={source} />}
                   {tool.id === "url" && <UrlPlan topic="" source={source} />}
                 </div>
                 <StepNav back={back} />

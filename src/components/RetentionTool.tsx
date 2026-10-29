@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseCues, parseNumber, parseRetention, readRetention, saidAt, type Curve, type Reading, type Span } from "@/lib/retention";
+import { keepSegments } from "@/lib/cutPlan";
+import { previewRange, removalsFromCliffs, shortFromRewatch, SHORT_LENGTHS } from "@/lib/retentionActions";
+import { useCaptionStyle } from "./captionStyleContext";
+import { useEffectsOption } from "./effectsContext";
+import { useReframeOption } from "./framingContext";
+import RangePreview from "./RangePreview";
+import { api } from "./shared";
+import { sourceReady, type SourceState } from "./source";
 import ToolIntro from "./ToolIntro";
 
 type Unit = "auto" | "percent" | "seconds";
@@ -32,7 +40,11 @@ const VERDICT: Record<Reading["hookVerdict"], { label: string; cls: string }> = 
  * Reads a YouTube Studio audience-retention export: the one thing the analytics page says about where viewers leave. Everything is
  * worked out on this page from what was pasted; nothing is sent anywhere and no AI is used.
  */
-export default function RetentionTool() {
+type Made = { state: "running" | "done" | "error"; progress: number; stage?: string; id?: string; durationSec?: number; bytes?: number; error?: string; note?: string };
+type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export default function RetentionTool({ source }: { source: SourceState }) {
   const [text, setText] = useState("");
   const [unit, setUnit] = useState<Unit>("auto");
   const [length, setLength] = useState("");
@@ -40,6 +52,58 @@ export default function RetentionTool() {
   const [shown, setShown] = useState<{ curve: Curve; reading: Reading; durationSec: number | null; cues: ReturnType<typeof parseCues>; isSample: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { style } = useCaptionStyle();
+  const effects = useEffectsOption();
+  const follow = useReframeOption("short");
+  const [made, setMade] = useState<Record<string, Made>>({});
+  const [skip, setSkip] = useState<Set<number>>(new Set());
+  const [layout, setLayout] = useState<"long" | "short">("long");
+  const [shortLen, setShortLen] = useState<number>(30);
+  const videoReady = sourceReady(source);
+
+  // An uploaded file tells its own length, so the page need not ask for it.
+  useEffect(() => {
+    if (!source.file) return;
+    const url = URL.createObjectURL(source.file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => {
+      if (Number.isFinite(v.duration) && v.duration > 0) setLength((cur) => (cur.trim() ? cur : String(Math.round(v.duration))));
+      URL.revokeObjectURL(url);
+    };
+    v.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [source.file]);
+
+  const patch = (key: string, m: Partial<Made>) => setMade((cur) => ({ ...cur, [key]: { ...({ state: "running", progress: 0 } as Made), ...cur[key], ...m } }));
+
+  /** Renders the video with the given options and follows it until it is done. */
+  const make = async (key: string, options: object) => {
+    patch(key, { state: "running", progress: 0, error: undefined, id: undefined, note: undefined, stage: undefined });
+    try {
+      const fd = new FormData();
+      if (source.file) fd.append("file", source.file);
+      fd.append(
+        "options",
+        JSON.stringify({ ...options, fit: "blur", captions: [], style, effects, sourcePath: !source.file && source.sourcePath.trim() ? source.sourcePath.trim() : undefined, rights: { confirmed: true, basis: source.basis } }),
+      );
+      const res = await fetch("/api/render", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `렌더링 실패 (${res.status})`);
+      for (;;) {
+        await wait(1000);
+        const st = await api<RenderStatus>(`/api/render/status?id=${json.id}`);
+        patch(key, { progress: st.progress, stage: st.stage });
+        if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
+        if (st.status === "done" && st.result) {
+          patch(key, { state: "done", progress: 1, stage: undefined, id: json.id, durationSec: st.result.durationSec, bytes: st.result.bytes, note: st.note });
+          return;
+        }
+      }
+    } catch (e) {
+      patch(key, { state: "error", error: (e as Error).message });
+    }
+  };
 
   const analyze = (source = text, isSample = false) => {
     setError(null);
@@ -167,6 +231,11 @@ export default function RetentionTool() {
                       <span className="font-semibold">{range(c)}</span>
                       <span className="tabular-nums text-bad">−{c.points}%p</span>
                       {shown.cues.length > 0 && <span className="w-full text-muted sm:w-auto sm:flex-1">{said ? `“${said}”` : c.fromSec === null ? "영상 길이를 넣으면 이 순간의 말을 보여 줍니다" : "이 근처에는 자막이 없습니다"}</span>}
+                      {videoReady && previewRange(c, r.durationSec) && (
+                        <span className="ml-auto">
+                          <RangePreview file={source.file} sourcePath={source.sourcePath.trim()} start={previewRange(c, r.durationSec)!.start} end={previewRange(c, r.durationSec)!.end} basis={source.basis} label="▶ 앞뒤 3초 보기" />
+                        </span>
+                      )}
                     </li>
                   );
                 })}
@@ -185,9 +254,85 @@ export default function RetentionTool() {
                     <span className="font-semibold">{range(c)}</span>
                     <span className="tabular-nums text-good">+{c.points}%p</span>
                     {shown.cues.length > 0 && c.fromSec !== null && c.toSec !== null && <span className="w-full text-muted sm:w-auto sm:flex-1">“{saidAt(shown.cues, c.fromSec, c.toSec) || "…"}”</span>}
+                    {videoReady && shortFromRewatch(c, r.durationSec, shortLen) && (
+                      <span className="ml-auto flex flex-wrap items-center gap-2">
+                        <RangePreview file={source.file} sourcePath={source.sourcePath.trim()} start={previewRange(c, r.durationSec)!.start} end={previewRange(c, r.durationSec)!.end} basis={source.basis} label="▶ 보기" />
+                        <button
+                          className="btn"
+                          disabled={made[`rewatch:${i}`]?.state === "running"}
+                          onClick={() => {
+                            const seg = shortFromRewatch(c, r.durationSec, shortLen)!;
+                            void make(`rewatch:${i}`, { layout: "short", segments: [seg], reframe: follow });
+                          }}
+                        >
+                          {made[`rewatch:${i}`]?.state === "running" ? (made[`rewatch:${i}`]?.stage ? `${made[`rewatch:${i}`]?.stage}…` : `만드는 중… ${Math.round(made[`rewatch:${i}`]!.progress * 100)}%`) : `이 구간으로 ${shortLen}초 쇼츠 만들기`}
+                        </button>
+                      </span>
+                    )}
+                    <MadeResult job={made[`rewatch:${i}`]} />
                   </li>
                 ))}
               </ol>
+              {videoReady && r.durationSec !== null && (
+                <label className="field mt-3 w-fit">쇼츠 길이
+                  <select className="input w-auto" value={shortLen} onChange={(e) => setShortLen(Number(e.target.value))}>
+                    {SHORT_LENGTHS.map((n) => <option key={n} value={n}>{n}초</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+
+          {!videoReady && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
+            <p className="callout text-sm text-muted">영상 파일을 올리면(앞 단계) 이 구간들을 바로 재생해 보고, 급락 구간을 뺀 영상이나 다시 돌려 본 구간의 쇼츠를 만들 수 있어요. 영상 길이도 알아야 하니 위에서 함께 넣어 주세요.</p>
+          )}
+          {videoReady && r.durationSec === null && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
+            <p className="callout text-sm text-muted">영상 길이(예: 600 또는 10:00)를 넣고 다시 분석하면 구간을 재생하고 영상을 만들 수 있어요. 파일을 직접 올리면 길이가 자동으로 들어갑니다.</p>
+          )}
+          {videoReady && r.durationSec !== null && r.cliffs.length > 0 && (
+            <div>
+              <h3 className="font-bold">급락한 곳을 빼고 다시 만들기</h3>
+              <p className="mt-1 text-sm text-muted">시청자가 한꺼번에 빠진 곳을 잘라 낸 시험용 편집본입니다. 급락의 원인이 그 장면 자체가 아닐 수도 있으니, 앞뒤를 재생해 본 뒤 빼고 싶은 곳만 고르세요.</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {r.cliffs.map((c, i) => (
+                  <li key={i}>
+                    <label className="text-sm">
+                      <input
+                        type="checkbox"
+                        className="mr-2"
+                        checked={!skip.has(i)}
+                        onChange={() => setSkip((cur) => {
+                          const next = new Set(cur);
+                          if (next.has(i)) next.delete(i);
+                          else next.add(i);
+                          return next;
+                        })}
+                      />
+                      #{i + 1} {range(c)} 빼기 <span className="text-muted">(−{c.points}%p)</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <label className="field">결과 형식
+                  <select className="input w-auto" value={layout} onChange={(e) => setLayout(e.target.value as "long" | "short")}>
+                    <option value="long">가로 1920×1080</option>
+                    <option value="short">세로 쇼츠 1080×1920 (3분 이하)</option>
+                  </select>
+                </label>
+                <button
+                  className="btn-primary self-end"
+                  disabled={made["cut"]?.state === "running" || r.cliffs.every((_, i) => skip.has(i))}
+                  onClick={() => {
+                    const removals = removalsFromCliffs(r.cliffs.filter((_, i) => !skip.has(i)), r.durationSec);
+                    const segments = keepSegments(r.durationSec!, removals);
+                    void make("cut", { layout, segments, reframe: layout === "short" ? follow : undefined });
+                  }}
+                >
+                  {made["cut"]?.state === "running" ? (made["cut"]?.stage ? `${made["cut"]?.stage}…` : `만드는 중… ${Math.round(made["cut"]!.progress * 100)}%`) : "이 편집본 만들기"}
+                </button>
+              </div>
+              <MadeResult job={made["cut"]} />
             </div>
           )}
 
@@ -268,4 +413,27 @@ function summaryText(r: Reading, cues: ReturnType<typeof parseCues>): string {
     r.rewatches.forEach((c, i) => lines.push(`${i + 1}. ${range(c)} +${c.points}%p`));
   }
   return lines.join("\n");
+}
+
+/** The progress, the result video and the download of one render started from this tool. */
+function MadeResult({ job }: { job: Made | undefined }) {
+  if (!job) return null;
+  return (
+    <div className="mt-3 flex w-full flex-col items-start gap-2">
+      {job.state === "running" && (
+        <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(job.progress * 100)} aria-label="만드는 중">
+          <div className="h-full bg-foreground transition-all" style={{ width: `${Math.round(job.progress * 100)}%` }} />
+        </div>
+      )}
+      {job.state === "error" && <p className="text-sm text-bad" role="alert">{job.error}</p>}
+      {job.state === "done" && job.id && (
+        <>
+          <video className="max-h-[420px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${job.id}`} />
+          {job.note && <p className="text-xs text-bad">{job.note}</p>}
+          <p className="text-xs text-muted">{job.durationSec}초 · {((job.bytes ?? 0) / 1024 / 1024).toFixed(1)}MB</p>
+          <a className="btn-primary" href={`/api/render/file?id=${job.id}&download=1`}>mp4 다운로드</a>
+        </>
+      )}
+    </div>
+  );
 }
