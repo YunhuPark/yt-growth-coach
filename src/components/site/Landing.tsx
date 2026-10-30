@@ -125,8 +125,9 @@ export default function Landing() {
           <h2 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">한 번에 하나씩, 버튼으로 넘어가요</h2>
           <p className="mt-4 max-w-2xl text-lg text-muted">작업을 고르고, 영상을 올리고, 꾸밀지 정하고, 만듭니다. 아래는 이 도구의 실제 화면입니다.</p>
           <div className="mt-12 grid gap-8 md:grid-cols-2">
-            <Shot src="/shots/task.webp" w={1904} h={1370} alt="1단계: 하고 싶은 작업 고르기" caption="1단계 · 하고 싶은 작업을 고릅니다" />
+            <Shot src="/shots/task.webp" w={1904} h={1882} alt="1단계: 하고 싶은 작업 고르기" caption="1단계 · 하고 싶은 작업을 고릅니다" />
             <Shot src="/shots/style.webp" w={1904} h={1394} alt="3단계: 자막 스타일 고르기" caption="3단계 · 자막 스타일을 고릅니다 (선택)" />
+            <Shot src="/shots/beats.webp" w={1802} h={2200} alt="박자에 맞춰 효과 넣기: 찾은 박자와 박 위치, 만드는 방식과 효과 선택" caption="박자에 맞춰 효과 넣기 · 음악의 박자를 찾은 결과 (합성한 북소리 영상)" />
           </div>
         </section>
 

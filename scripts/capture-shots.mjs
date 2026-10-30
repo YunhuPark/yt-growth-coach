@@ -4,6 +4,7 @@
 //   node scripts/capture-shots.mjs <a video file with some pauses in its sound> [outDir]
 //
 // A test video that works: ffmpeg -f lavfi -i "color=c=0x2a3a4a:s=1280x720:r=25:d=20" -f lavfi -i "sine=frequency=220:duration=20" //   -af "volume='if(lt(mod(t,4),2.2),0.5,0)':eval=frame" -shortest -pix_fmt yuv420p talk.mp4
+// Set BEAT_VIDEO to a video with music of a steady beat (a drum loop from ffmpeg is enough) to also take the beat tool's screen.
 // Set CHROME_PATH if Chrome is not in its usual place on Windows. Use a video you own: it shows in the screenshots only as a file name.
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
@@ -13,6 +14,7 @@ import path from "node:path";
 const [videoPath, outDirArg] = process.argv.slice(2);
 const outDir = outDirArg ?? "public/shots";
 if (!videoPath) throw new Error("usage: node scripts/capture-shots.mjs <video> [outDir]");
+const beatVideo = process.env.BEAT_VIDEO;
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PORT = 9333;
 const profile = mkdtempSync(path.join(tmpdir(), "cap-"));
@@ -121,6 +123,35 @@ try {
   await sleep(500);
   const result = await boxOf(`[...document.querySelectorAll('p')].find(p => p.textContent.startsWith('원본 ')).closest('[class*="rounded"]')`);
   await shot("cut", { x: result.x, y: result.y, width: result.width, height: Math.min(result.height, 640) });
+
+  // 4. the beat tool, with the beats of the music found on this computer
+  if (beatVideo) {
+    await goto("http://localhost:3000/edit");
+    await evaluate(HELPERS);
+    await evaluate(`__click('박자에 맞춰 효과 넣기'); true`);
+    await sleep(400);
+    await evaluate(`__click('다음: 영상 올리기'); true`);
+    await sleep(500);
+    await evaluate(`document.querySelector('#step-source details summary').click(); true`);
+    await sleep(300);
+    await evaluate(`__setInput(document.querySelector('#step-source input[placeholder]'), ${JSON.stringify(beatVideo)}); true`);
+    await evaluate(`__setSelect(document.querySelector('#step-source select'), '직접 촬영'); true`);
+    await sleep(200);
+    await evaluate(`document.querySelector('#step-source input[type=checkbox]').click(); true`);
+    await sleep(500);
+    await evaluate(`__click('다음: 꾸미기'); true`);
+    await sleep(800);
+    await evaluate(`__click('다음: 만들기'); true`);
+    await sleep(700);
+    await evaluate(`__click('박자 찾기'); true`);
+    for (let i = 0; i < 120; i++) {
+      await sleep(500);
+      if (await evaluate(`document.body.innerText.includes('BPM')`)) break;
+    }
+    await sleep(500);
+    const card = await boxOf(`document.querySelector('main section:not([hidden]) .card')`);
+    await shot("beats", { x: card.x, y: card.y, width: card.width, height: Math.min(card.height, 1100) });
+  }
 } finally {
   ws.close();
   chrome.kill();
