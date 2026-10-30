@@ -89,3 +89,36 @@ export function snapToBeats(start: number, end: number, beats: number[], minBeat
 /** The beats inside [start, end], as times from `start`: what an effect list for a piece cut out of the video needs. */
 export const beatsWithin = (beats: number[], start: number, end: number): number[] =>
   beats.filter((b) => b >= start - 1e-6 && b <= end + 1e-6).map((b) => Math.round((b - start) * 1000) / 1000);
+
+/**
+ * A short montage of a long stretch: pieces of `beatsPerPiece` beats, taken evenly across the stretch and joined. Every piece starts
+ * and ends on a beat and starts on a multiple of its length from the first beat, so pieces never overlap, bars stay aligned, and the
+ * pulse carries across the joins. A target at least as long as the stretch gives the whole stretch.
+ */
+export function planBeatCuts(beats: number[], from: number, to: number, beatsPerPiece: number, targetSec: number): { start: number; end: number }[] {
+  const k = Math.max(1, Math.round(beatsPerPiece));
+  const b = beats.filter((x) => x >= from - 1e-6 && x <= to + 1e-6);
+  const maxPieces = Math.floor((b.length - 1) / k);
+  const period = beatPeriod(b);
+  if (maxPieces < 1 || period <= 0) return [];
+  const want = Math.max(1, Math.round(targetSec / (k * period)));
+  const m = Math.min(want, maxPieces);
+  const out: { start: number; end: number }[] = [];
+  for (let j = 0; j < m; j++) {
+    const a = m === 1 ? 0 : Math.round((j * (maxPieces - 1)) / (m - 1));
+    out.push({ start: b[a * k], end: b[a * k + k] });
+  }
+  return out;
+}
+
+/** The beats as times in the joined result of `pieces`: each piece's beats from its start, the end beat left to the next piece. */
+export function beatsInResult(pieces: { start: number; end: number }[], beats: number[]): number[] {
+  const out: number[] = [];
+  let offset = 0;
+  pieces.forEach((p, i) => {
+    const last = i === pieces.length - 1;
+    for (const x of beats) if (x >= p.start - 1e-6 && (last ? x <= p.end + 1e-6 : x < p.end - 1e-6)) out.push(Math.round((offset + x - p.start) * 1000) / 1000);
+    offset += p.end - p.start;
+  });
+  return out;
+}

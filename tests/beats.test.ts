@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { analyzeBeats, findBeats, NoSoundError } from "../src/lib/editor/beatAnalysis";
-import { beatPeriod, beatsWithin, bpmOf, everyNth, nearestBeat, regularity, scaleBeats, shiftBeats, snapToBeats } from "../src/lib/editor/beats";
+import { renderVideo } from "../src/lib/editor/render";
+import { beatPeriod, beatsInResult, beatsWithin, bpmOf, everyNth, nearestBeat, planBeatCuts, regularity, scaleBeats, shiftBeats, snapToBeats } from "../src/lib/editor/beats";
 
 const grid = (period: number, n: number, from = 0) => Array.from({ length: n }, (_, i) => Math.round((from + i * period) * 1000) / 1000);
 
@@ -89,11 +90,52 @@ describe("beatsWithin", () => {
   });
 });
 
+describe("planBeatCuts and beatsInResult", () => {
+  const b = grid(0.5, 121, 0.2); // 60 s of 120 BPM, first beat at 0.2
+  it("takes pieces of whole bars evenly across the stretch, each starting and ending on a beat", () => {
+    const p = planBeatCuts(b, 0, 60.2, 4, 10); // 2 s per piece -> 5 pieces
+    assert.equal(p.length, 5);
+    for (const x of p) {
+      assert.ok(b.includes(x.start) && b.includes(x.end));
+      assert.ok(Math.abs(x.end - x.start - 2) < 1e-6);
+      assert.ok(Math.abs(((x.start - 0.2) / 2) % 1) < 1e-6, "starts on a bar line counted from the first beat");
+    }
+    assert.equal(p[0].start, 0.2);
+    assert.ok(p[4].end <= 60.2);
+    for (let i = 1; i < p.length; i++) assert.ok(p[i].start >= p[i - 1].end, "no overlap");
+  });
+  it("gives the whole stretch when the target is long, and one piece for a very short target", () => {
+    const all = planBeatCuts(b, 0, 60.2, 4, 999);
+    assert.equal(all.length, 30);
+    assert.equal(all[0].start, 0.2);
+    assert.equal(all[29].end, 60.2);
+    assert.equal(planBeatCuts(b, 0, 60.2, 4, 0.5).length, 1);
+  });
+  it("gives nothing when there are too few beats", () => {
+    assert.deepEqual(planBeatCuts([1, 1.5, 2], 0, 3, 4, 10), []);
+    assert.deepEqual(planBeatCuts([], 0, 3, 4, 10), []);
+  });
+  it("keeps the pulse steady across the joins in the result", () => {
+    const p = planBeatCuts(b, 0, 60.2, 4, 10);
+    const r = beatsInResult(p, b);
+    assert.equal(r.length, 21, "4 beats from each of 5 pieces, and the closing beat of the last");
+    assert.deepEqual(r.slice(0, 5), [0, 0.5, 1, 1.5, 2]);
+    for (let i = 1; i < r.length; i++) assert.ok(Math.abs(r[i] - r[i - 1] - 0.5) < 1e-6, `gap at ${i}`);
+  });
+  it("includes the last beat of the last piece only", () => {
+    const r = beatsInResult([{ start: 1, end: 2 }, { start: 5, end: 6 }], [1, 1.5, 2, 5, 5.5, 6]);
+    assert.deepEqual(r, [0, 0.5, 1, 1.5, 2]);
+  });
+});
+
 // ------------------------------------------------------------------ the analysis itself
 
 const FFMPEG = path.join(process.cwd(), "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 const FFM = process.env.FFMPEG_PATH || FFMPEG;
 const hasFfmpeg = existsSync(FFM);
+const FONTS = ["C:/Windows/Fonts/malgunbd.ttf", "C:/Windows/Fonts/malgun.ttf", "C:/Windows/Fonts/NanumGothic.ttf", "/System/Library/Fonts/AppleSDGothicNeo.ttc", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"];
+const canRender = hasFfmpeg && FONTS.some((f) => existsSync(f));
+process.env.USAGE_LOG = "off";
 
 describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ffmpeg" : false, timeout: 120_000 }, () => {
   let dir: string;
@@ -149,5 +191,32 @@ describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ff
   it("returns no beats instead of failing for something it cannot read", () => {
     assert.deepEqual(findBeats(new Float32Array(100)), { beats: [] });
     assert.deepEqual(findBeats(new Float32Array(22050 * 5)), { beats: [] }, "silence has no beats");
+  });
+});
+
+describe("a beat montage keeps the pulse", { skip: !canRender ? "needs ffmpeg and a font" : false, timeout: 240_000 }, () => {
+  it("is still a steady 120 BPM after pieces from all over a 60 s clip are joined", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "ytgc-montage-"));
+    try {
+      const p = 0.5;
+      const kick = `aevalsrc='(lt(mod(t,${p}),0.08))*sin(2*PI*(60+120*exp(-mod(t,${p})*60))*t)*exp(-mod(t,${p})*25)*0.9':d=60:s=44100`;
+      const src = path.join(dir, "src.mp4");
+      const r = spawnSync(FFM, ["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=320x180:r=15:d=60", "-f", "lavfi", "-i", kick, "-shortest", "-pix_fmt", "yuv420p", src]);
+      assert.equal(r.status, 0, String(r.stderr));
+
+      const found = await analyzeBeats(src, path.join(dir, "w1"));
+      const pieces = planBeatCuts(found.beats, 0, found.duration, 4, 12);
+      assert.ok(pieces.length >= 5, `${pieces.length} pieces`);
+      const times = beatsInResult(pieces, found.beats);
+      const out = path.join(dir, "out");
+      const res = await renderVideo(src, out, { layout: "long", fit: "blur", captions: [], segments: pieces, effects: { transition: "flash", cutSound: "tick", beatTimes: times } }, () => {});
+      assert.ok(res.effects && res.effects.transitions > 10);
+
+      const again = await analyzeBeats(path.join(out, "output.mp4"), path.join(dir, "w2"));
+      assert.ok(Math.abs(again.bpm - 120) < 3, `bpm ${again.bpm}`);
+      assert.ok(again.regularity > 0.85, `regularity ${again.regularity}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
