@@ -5,9 +5,9 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { analyzeBeats, findBeats, NoSoundError } from "../src/lib/editor/beatAnalysis";
+import { analyzeBeats, findBeats, loudnessOf, NoSoundError } from "../src/lib/editor/beatAnalysis";
 import { renderVideo } from "../src/lib/editor/render";
-import { beatPeriod, beatsInResult, beatsWithin, bpmOf, everyNth, nearestBeat, planBeatCuts, regularity, scaleBeats, shiftBeats, snapToBeats } from "../src/lib/editor/beats";
+import { beatPeriod, beatsInResult, beatsWithin, bpmOf, everyNth, loudnessBetween, nearestBeat, planBeatCuts, regularity, scaleBeats, shiftBeats, snapToBeats } from "../src/lib/editor/beats";
 
 const grid = (period: number, n: number, from = 0) => Array.from({ length: n }, (_, i) => Math.round((from + i * period) * 1000) / 1000);
 
@@ -115,6 +115,25 @@ describe("planBeatCuts and beatsInResult", () => {
     assert.deepEqual(planBeatCuts([1, 1.5, 2], 0, 3, 4, 10), []);
     assert.deepEqual(planBeatCuts([], 0, 3, 4, 10), []);
   });
+  it("can take the loudest pieces instead, in their original order", () => {
+    // 60 s, quiet except 30..40 s
+    const values = Array.from({ length: 240 }, (_, i) => (i * 0.25 >= 30 && i * 0.25 < 40 ? 0.5 : 0.05));
+    const loudness = { fromSec: 0, stepSec: 0.25, values };
+    const p = planBeatCuts(b, 0, 60.2, 4, 10, { by: "loud", loudness });
+    assert.equal(p.length, 5);
+    assert.ok(p.every((x) => x.start >= 29.9 && x.end <= 40.3), JSON.stringify(p));
+    for (let i = 1; i < p.length; i++) assert.ok(p[i].start >= p[i - 1].end);
+    // a target as long as the stretch makes the choice moot
+    assert.equal(planBeatCuts(b, 0, 60.2, 4, 999, { by: "loud", loudness }).length, 30);
+  });
+  it("reads the mean strength between two times", () => {
+    const l = { fromSec: 10, stepSec: 0.5, values: [0.1, 0.1, 0.9, 0.9] };
+    assert.ok(Math.abs(loudnessBetween(l, 10, 11) - 0.1) < 1e-9);
+    assert.ok(Math.abs(loudnessBetween(l, 11, 12) - 0.9) < 1e-9);
+    assert.ok(Math.abs(loudnessBetween(l, 10.5, 11.5) - 0.5) < 1e-9);
+    assert.equal(loudnessBetween({ fromSec: 0, stepSec: 1, values: [] }, 0, 5), 0);
+    assert.equal(loudnessBetween(l, 100, 101), 0, "no data past the end");
+  });
   it("keeps the pulse steady across the joins in the result", () => {
     const p = planBeatCuts(b, 0, 60.2, 4, 10);
     const r = beatsInResult(p, b);
@@ -188,7 +207,22 @@ describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ff
     await assert.rejects(analyzeBeats(clip("short.mp4", 120, 3), path.join(dir, "w5")), /너무 짧/);
   });
 
+  it("measures how loud each part of the sound is", async () => {
+    const p = 0.5;
+    const amp = "if(between(t,20,40),0.9,0.15)";
+    const kick = `aevalsrc='(lt(mod(t,${p}),0.08))*sin(2*PI*(60+120*exp(-mod(t,${p})*60))*t)*exp(-mod(t,${p})*25)*${amp}':d=60:s=44100`;
+    const f = path.join(dir, "loud.mp4");
+    const r = spawnSync(FFM, ["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=160x90:r=10:d=60", "-f", "lavfi", "-i", kick, "-shortest", "-pix_fmt", "yuv420p", f]);
+    assert.equal(r.status, 0, String(r.stderr));
+    const a = await analyzeBeats(f, path.join(dir, "w6"));
+    assert.equal(a.loudness.stepSec, 0.25);
+    assert.ok(loudnessBetween(a.loudness, 22, 38) > 3 * loudnessBetween(a.loudness, 2, 18), "the loud middle is much louder");
+    const picked = planBeatCuts(a.beats, 0, a.duration, 4, 10, { by: "loud", loudness: a.loudness });
+    assert.ok(picked.length >= 4 && picked.every((x) => x.start >= 19.5 && x.end <= 40.5), JSON.stringify(picked));
+  });
+
   it("returns no beats instead of failing for something it cannot read", () => {
+    assert.equal(loudnessOf(new Float32Array(0), 3).values.length, 0);
     assert.deepEqual(findBeats(new Float32Array(100)), { beats: [] });
     assert.deepEqual(findBeats(new Float32Array(22050 * 5)), { beats: [] }, "silence has no beats");
   });

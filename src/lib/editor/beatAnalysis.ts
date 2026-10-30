@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import MusicTempo from "music-tempo";
-import { bpmOf, regularity } from "./beats";
+import { bpmOf, regularity, type Loudness } from "./beats";
 import { probe, run } from "./render";
 
 // Finds the beats of the sound of a video, on this computer: ffmpeg writes the sound as plain numbers and the music-tempo package
@@ -10,6 +10,7 @@ import { probe, run } from "./render";
 export const SAMPLE_RATE = 22050;
 // music-tempo assumes 44.1 kHz sound (a hop of 441 samples is "0.01 s"); at a lower rate its window and time step are given instead.
 const HOP = 220;
+const LOUDNESS_STEP = 0.25;
 const TUNING = { bufferSize: 1024, hopSize: HOP, timeStep: HOP / SAMPLE_RATE };
 /** At most this much sound is listened to in one go. */
 export const MAX_ANALYSIS_SEC = 600;
@@ -27,6 +28,8 @@ export type BeatAnalysis = {
   beats: number[];
   /** how evenly spaced they are, 0 to 1 */
   regularity: number;
+  /** how loud the listened stretch is along its length, for picking the strong parts */
+  loudness: Loudness;
 };
 
 export class NoSoundError extends Error {}
@@ -53,7 +56,7 @@ export async function analyzeBeats(input: string, dir: string, opts: { startSec?
 
   const found = findBeats(samples);
   const beats = found.beats.map((b) => Math.round((b + fromSec) * 1000) / 1000);
-  return { duration: info.duration, width: info.width, height: info.height, fromSec, analyzedSec, bpm: bpmOf(beats), beats, regularity: regularity(beats) };
+  return { duration: info.duration, width: info.width, height: info.height, fromSec, analyzedSec, bpm: bpmOf(beats), beats, regularity: regularity(beats), loudness: loudnessOf(samples, fromSec) };
 }
 
 /** The beat times (seconds from the start of the samples) of mono sound at SAMPLE_RATE. Empty when no beat is found. */
@@ -64,4 +67,16 @@ export function findBeats(samples: Float32Array): { beats: number[] } {
   } catch {
     return { beats: [] }; // too little or too even a sound for the algorithm to say anything
   }
+}
+
+/** The sound's strength every LOUDNESS_STEP seconds (root mean square), as times from the start of the video. */
+export function loudnessOf(samples: Float32Array, fromSec: number): Loudness {
+  const win = Math.round(LOUDNESS_STEP * SAMPLE_RATE);
+  const values: number[] = [];
+  for (let i = 0; i + win <= samples.length; i += win) {
+    let sum = 0;
+    for (let j = i; j < i + win; j++) sum += samples[j] * samples[j];
+    values.push(Math.round(Math.sqrt(sum / win) * 10000) / 10000);
+  }
+  return { fromSec, stepSec: LOUDNESS_STEP, values };
 }

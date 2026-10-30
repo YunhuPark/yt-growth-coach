@@ -48,6 +48,7 @@ export default function BeatSync({ source }: { source: SourceState }) {
   const [mode, setMode] = useState<"whole" | "montage">("whole");
   const [piece, setPiece] = useState(4);
   const [target, setTarget] = useState(30);
+  const [pickBy, setPickBy] = useState<"even" | "loud">("even");
   const [transition, setTransition] = useState<TransitionKind>("flash");
   const [sound, setSound] = useState<CutSound>("tick");
   const [volume, setVolume] = useState(0.6);
@@ -62,7 +63,7 @@ export default function BeatSync({ source }: { source: SourceState }) {
   const beats = useMemo(() => everyNth(base, every, Math.min(phase, every - 1)), [base, every, phase]);
 
   // a montage: pieces of whole bars from all over the stretch, joined
-  const pieces = useMemo(() => (found && mode === "montage" ? planBeatCuts(base, found.fromSec, found.fromSec + found.analyzedSec, piece, target) : []), [found, mode, base, piece, target]);
+  const pieces = useMemo(() => (found && mode === "montage" ? planBeatCuts(base, found.fromSec, found.fromSec + found.analyzedSec, piece, target, pickBy === "loud" ? { by: "loud", loudness: found.loudness } : { by: "even" }) : []), [found, mode, base, piece, target, pickBy]);
   const montageTimes = useMemo(() => everyNth(beatsInResult(pieces, base), every, Math.min(phase, every - 1)), [pieces, base, every, phase]);
   const montageSec = pieces.reduce((n, p) => n + (p.end - p.start), 0);
 
@@ -175,7 +176,7 @@ export default function BeatSync({ source }: { source: SourceState }) {
       >
         소리를 내 컴퓨터에서 분석하며 영상이나 소리는 어디로도 전송되지 않고 AI도 쓰지 않습니다. 박자 찾기는 MIT 라이선스의 music-tempo 패키지(BeatRoot 알고리즘)를 쓰며 1분에 60~200박 사이의 박자만 찾습니다.
         음악이 또렷하고 박자가 일정한 영상에서 잘 맞고, 말소리가 큰 영상이나 박자가 자유로운 곡에서는 어긋납니다. 템포를 절반이나 두 배로 잘못 잡는 일이 흔해서 ‘2배·절반’ 단추와 위치 조절을 두었습니다. 실제 음악 영상이 아닌 합성한 북소리로만 정확도를 시험했습니다.
-        효과는 한 번에 최대 400개(번쩍임·어두워짐은 150개, 확대는 100개)까지 넣고, 그대로 만들 때는 최대 3분까지 만듭니다. ‘박에 맞춰 줄이기’는 한 번에 최대 10분 구간에서 4박이나 8박 조각을 고르게 뽑아 이어 붙이는데, 조각이 박에서 시작해 박에서 끝나 이어 붙여도 박자가 그대로 이어집니다. 어느 조각을 뽑을지는 소리나 장면을 보지 않고 간격만으로 정하므로, 좋은 장면을 골라 주지는 않습니다.
+        효과는 한 번에 최대 400개(번쩍임·어두워짐은 150개, 확대는 100개)까지 넣고, 그대로 만들 때는 최대 3분까지 만듭니다. ‘박에 맞춰 줄이기’는 한 번에 최대 10분 구간에서 4박이나 8박 조각을 고르게 뽑아 이어 붙이는데, 조각이 박에서 시작해 박에서 끝나 이어 붙여도 박자가 그대로 이어집니다. 조각은 구간 전체에서 고르게 뽑거나 소리가 큰 곳 위주로 뽑는데, 큰 소리가 꼭 좋은 장면은 아니고 장면(화면)은 보지 않습니다. 소리가 큰 곳 위주로 뽑으면 한곳에 몰릴 수 있습니다.
       </ToolIntro>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
@@ -231,6 +232,12 @@ export default function BeatSync({ source }: { source: SourceState }) {
                 <label className="field">결과 길이(목표)
                   <select className="input w-auto" value={target} onChange={(e) => setTarget(Number(e.target.value))}>
                     {TARGETS.map((n) => <option key={n} value={n}>약 {n}초</option>)}
+                  </select>
+                </label>
+                <label className="field">뽑는 방식
+                  <select className="input w-auto" value={pickBy} onChange={(e) => setPickBy(e.target.value as "even" | "loud")}>
+                    <option value="even">구간 전체에서 고르게</option>
+                    <option value="loud">소리가 큰 곳 위주</option>
                   </select>
                 </label>
                 <p className="text-sm text-muted">{pieces.length ? `${pieces.length}개 조각을 이어 붙입니다.` : "조각을 만들 박이 모자랍니다. 더 긴 구간을 분석해 보세요."}</p>

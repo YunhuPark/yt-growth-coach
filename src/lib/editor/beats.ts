@@ -6,6 +6,23 @@ export type BeatMap = {
   beats: number[];
 };
 
+/** How strong the sound is along a stretch: one value per `stepSec`, the first starting at `fromSec` (seconds in the video). */
+export type Loudness = { fromSec: number; stepSec: number; values: number[] };
+
+/** The mean strength of the sound between two times; 0 where there is no data. */
+export function loudnessBetween(l: Loudness, start: number, end: number): number {
+  if (!l.values.length || l.stepSec <= 0) return 0;
+  const a = Math.max(0, Math.floor((start - l.fromSec) / l.stepSec));
+  const b = Math.min(l.values.length, Math.max(a + 1, Math.ceil((end - l.fromSec) / l.stepSec)));
+  let sum = 0;
+  let n = 0;
+  for (let i = a; i < b; i++) {
+    sum += l.values[i];
+    n++;
+  }
+  return n ? sum / n : 0;
+}
+
 const median = (a: number[]) => {
   if (!a.length) return 0;
   const s = [...a].sort((x, y) => x - y);
@@ -93,9 +110,17 @@ export const beatsWithin = (beats: number[], start: number, end: number): number
 /**
  * A short montage of a long stretch: pieces of `beatsPerPiece` beats, taken evenly across the stretch and joined. Every piece starts
  * and ends on a beat and starts on a multiple of its length from the first beat, so pieces never overlap, bars stay aligned, and the
- * pulse carries across the joins. A target at least as long as the stretch gives the whole stretch.
+ * pulse carries across the joins. A target at least as long as the stretch gives the whole stretch. Pieces are spread evenly, or the
+ * loudest ones are taken (a chorus or a drop is usually louder than a verse), which then may be clustered.
  */
-export function planBeatCuts(beats: number[], from: number, to: number, beatsPerPiece: number, targetSec: number): { start: number; end: number }[] {
+export function planBeatCuts(
+  beats: number[],
+  from: number,
+  to: number,
+  beatsPerPiece: number,
+  targetSec: number,
+  pick: { by: "even" } | { by: "loud"; loudness: Loudness } = { by: "even" },
+): { start: number; end: number }[] {
   const k = Math.max(1, Math.round(beatsPerPiece));
   const b = beats.filter((x) => x >= from - 1e-6 && x <= to + 1e-6);
   const maxPieces = Math.floor((b.length - 1) / k);
@@ -103,12 +128,16 @@ export function planBeatCuts(beats: number[], from: number, to: number, beatsPer
   if (maxPieces < 1 || period <= 0) return [];
   const want = Math.max(1, Math.round(targetSec / (k * period)));
   const m = Math.min(want, maxPieces);
-  const out: { start: number; end: number }[] = [];
-  for (let j = 0; j < m; j++) {
-    const a = m === 1 ? 0 : Math.round((j * (maxPieces - 1)) / (m - 1));
-    out.push({ start: b[a * k], end: b[a * k + k] });
+  let at: number[];
+  if (pick.by === "loud" && m < maxPieces) {
+    // the m strongest pieces (the earlier one wins a tie), shown in their original order
+    const scored = Array.from({ length: maxPieces }, (_, a) => ({ a, v: loudnessBetween(pick.loudness, b[a * k], b[a * k + k]) }));
+    scored.sort((x, y) => y.v - x.v || x.a - y.a);
+    at = scored.slice(0, m).map((x) => x.a).sort((x, y) => x - y);
+  } else {
+    at = Array.from({ length: m }, (_, j) => (m === 1 ? 0 : Math.round((j * (maxPieces - 1)) / (m - 1))));
   }
-  return out;
+  return at.map((a) => ({ start: b[a * k], end: b[a * k + k] }));
 }
 
 /** The beats as times in the joined result of `pieces`: each piece's beats from its start, the end beat left to the next piece. */
