@@ -174,6 +174,8 @@ describe("following a subject", { skip: !hasFfmpeg ? "needs the bundled ffmpeg" 
     assert.equal(job?.reframe?.looks.length, 12);
     assert.equal(job?.reframe?.width, 640);
     assert.ok(existsSync(ramp), "an input that was not an upload must stay");
+    // the job marks itself done and then cleans up, so give the cleanup a moment
+    for (let i = 0; i < 40 && existsSync(path.join(dir, "j1")); i++) await new Promise((r) => setTimeout(r, 50));
     assert.ok(!existsSync(path.join(dir, "j1")), "the working folder is cleaned up");
   });
 
