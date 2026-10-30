@@ -9,7 +9,7 @@ import { useCaptionStyle } from "./captionStyleContext";
 import { useEffectsOption } from "./effectsContext";
 import { useReframeOption } from "./framingContext";
 import RangePreview from "./RangePreview";
-import { api } from "../shared";
+import { followRender, MadeResult, runningLabel, type Made } from "./madeRender";
 import { sourceReady, type SourceState } from "./source";
 import ToolIntro from "./ToolIntro";
 
@@ -41,10 +41,6 @@ const VERDICT: Record<Reading["hookVerdict"], { label: string; cls: string }> = 
  * Reads a YouTube Studio audience-retention export: the one thing the analytics page says about where viewers leave. Everything is
  * worked out on this page from what was pasted; nothing is sent anywhere and no AI is used.
  */
-type Made = { state: "running" | "done" | "error"; progress: number; stage?: string; id?: string; durationSec?: number; bytes?: number; error?: string; note?: string };
-type RenderStatus = { status: "running" | "done" | "error"; progress: number; stage?: string; note?: string; error?: string; result?: { durationSec: number; bytes: number } };
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 export default function RetentionTool({ source }: { source: SourceState }) {
   const [text, setText] = useState("");
   const [unit, setUnit] = useState<Unit>("auto");
@@ -80,30 +76,13 @@ export default function RetentionTool({ source }: { source: SourceState }) {
 
   /** Renders the video with the given options and follows it until it is done. */
   const make = async (key: string, options: object) => {
-    patch(key, { state: "running", progress: 0, error: undefined, id: undefined, note: undefined, stage: undefined });
-    try {
-      const fd = new FormData();
-      if (source.file) fd.append("file", source.file);
-      fd.append(
-        "options",
-        JSON.stringify({ ...options, fit: "blur", captions: [], style, effects, sourcePath: !source.file && source.sourcePath.trim() ? source.sourcePath.trim() : undefined, rights: { confirmed: true, basis: source.basis } }),
-      );
-      const res = await fetch("/api/render", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `렌더링 실패 (${res.status})`);
-      for (;;) {
-        await wait(1000);
-        const st = await api<RenderStatus>(`/api/render/status?id=${json.id}`);
-        patch(key, { progress: st.progress, stage: st.stage });
-        if (st.status === "error") throw new Error(st.error ?? "렌더링에 실패했습니다.");
-        if (st.status === "done" && st.result) {
-          patch(key, { state: "done", progress: 1, stage: undefined, id: json.id, durationSec: st.result.durationSec, bytes: st.result.bytes, note: st.note });
-          return;
-        }
-      }
-    } catch (e) {
-      patch(key, { state: "error", error: (e as Error).message });
-    }
+    const fd = new FormData();
+    if (source.file) fd.append("file", source.file);
+    fd.append(
+      "options",
+      JSON.stringify({ ...options, fit: "blur", captions: [], style, effects, sourcePath: !source.file && source.sourcePath.trim() ? source.sourcePath.trim() : undefined, rights: { confirmed: true, basis: source.basis } }),
+    );
+    await followRender(fd, (m) => patch(key, m));
   };
 
   const analyze = (source = text, isSample = false) => {
@@ -266,7 +245,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
                             void make(`rewatch:${i}`, { layout: "short", segments: [seg], reframe: follow });
                           }}
                         >
-                          {made[`rewatch:${i}`]?.state === "running" ? (made[`rewatch:${i}`]?.stage ? `${made[`rewatch:${i}`]?.stage}…` : `만드는 중… ${Math.round(made[`rewatch:${i}`]!.progress * 100)}%`) : `이 구간으로 ${shortLen}초 쇼츠 만들기`}
+                          {runningLabel(made[`rewatch:${i}`], `이 구간으로 ${shortLen}초 쇼츠 만들기`)}
                         </button>
                       </span>
                     )}
@@ -330,7 +309,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
                     void make("cut", { layout, segments, reframe: layout === "short" ? follow : undefined });
                   }}
                 >
-                  {made["cut"]?.state === "running" ? (made["cut"]?.stage ? `${made["cut"]?.stage}…` : `만드는 중… ${Math.round(made["cut"]!.progress * 100)}%`) : "이 편집본 만들기"}
+                  {runningLabel(made["cut"], "이 편집본 만들기")}
                 </button>
               </div>
               <MadeResult job={made["cut"]} />
@@ -414,27 +393,4 @@ function summaryText(r: Reading, cues: ReturnType<typeof parseCues>): string {
     r.rewatches.forEach((c, i) => lines.push(`${i + 1}. ${range(c)} +${c.points}%p`));
   }
   return lines.join("\n");
-}
-
-/** The progress, the result video and the download of one render started from this tool. */
-function MadeResult({ job }: { job: Made | undefined }) {
-  if (!job) return null;
-  return (
-    <div className="mt-3 flex w-full flex-col items-start gap-2">
-      {job.state === "running" && (
-        <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(job.progress * 100)} aria-label="만드는 중">
-          <div className="h-full bg-foreground transition-all" style={{ width: `${Math.round(job.progress * 100)}%` }} />
-        </div>
-      )}
-      {job.state === "error" && <p className="text-sm text-bad" role="alert">{job.error}</p>}
-      {job.state === "done" && job.id && (
-        <>
-          <video className="max-h-[420px] max-w-full rounded-md border border-line" controls src={`/api/render/file?id=${job.id}`} />
-          {job.note && <p className="text-xs text-bad">{job.note}</p>}
-          <p className="text-xs text-muted">{job.durationSec}초 · {((job.bytes ?? 0) / 1024 / 1024).toFixed(1)}MB</p>
-          <a className="btn-primary" href={`/api/render/file?id=${job.id}&download=1`}>mp4 다운로드</a>
-        </>
-      )}
-    </div>
-  );
 }

@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.133.0",
     "@huggingface/transformers": "^4.3.1",
     "ffmpeg-static": "^5.3.0",
+    "music-tempo": "1.0.3",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",

@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { analyzeVideo, detectSilences, type Analysis } from "./analyzeVideo";
+import { analyzeBeats, type BeatAnalysis } from "./beatAnalysis";
 import { planEdit, type EditPlan, type PlanContext } from "./autoEdit";
 import type { ClipProfile } from "./clipProfile";
 import { findHighlights, type Highlight } from "./highlights";
@@ -32,6 +33,8 @@ export type AutoJob = {
   reframe?: ReframeAnalysis;
   /** how far along the picture-by-picture search is */
   progress?: number;
+  /** the tempo and beats found by a beat analysis */
+  beats?: BeatAnalysis;
 };
 
 /** What a person search found. The camera path is worked out on the page so smoothness can change without a new run. */
@@ -264,6 +267,37 @@ export function startAutoReframe(args: {
         addMeta({ looks: track.looks.length });
         job.reframe = { duration: info.duration, width: info.width, height: info.height, looks: track.looks, thumbs: track.thumbs };
         job.duration = info.duration;
+      });
+      job.status = "done";
+      job.stage = "완료";
+    } catch (e) {
+      job.status = "error";
+      job.error = e instanceof Error ? e.message : "분석에 실패했습니다.";
+    } finally {
+      if (args.deleteInput) await fs.rm(args.input, { force: true });
+      await fs.rm(args.dir, { recursive: true, force: true });
+    }
+  })();
+}
+
+/** Listens to the sound of a video (or a stretch of it) and finds its beats; nothing leaves this computer. */
+export function startBeats(args: {
+  id: string;
+  dir: string;
+  input: string;
+  deleteInput: boolean;
+  startSec?: number;
+  lengthSec?: number;
+}) {
+  const job: AutoJob = { status: "running", stage: "소리에서 박자 찾는 중" };
+  jobs.set(args.id, job);
+  void (async () => {
+    try {
+      await tracked("beats", async () => {
+        const found = await timed("박자 분석", () => analyzeBeats(args.input, args.dir, { startSec: args.startSec, lengthSec: args.lengthSec }));
+        addMeta({ inputSec: Math.round(found.analyzedSec), beats: found.beats.length });
+        job.beats = found;
+        job.duration = found.duration;
       });
       job.status = "done";
       job.stage = "완료";

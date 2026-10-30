@@ -19,9 +19,11 @@ export type EffectsOpts = {
   volume: number;
   /** also decorate jump cuts that only took out a short pause; by default only cuts that skipped a real stretch are decorated */
   allCuts: boolean;
+  /** times in the result at which to put the transition and sound, instead of at the cuts (the beats of the music, see beats.ts) */
+  beatTimes: number[];
 };
 
-export const DEFAULT_EFFECTS: EffectsOpts = { transition: "none", cutSound: "none", hookSound: false, endingSound: false, volume: 0.5, allCuts: false };
+export const DEFAULT_EFFECTS: EffectsOpts = { transition: "none", cutSound: "none", hookSound: false, endingSound: false, volume: 0.5, allCuts: false, beatTimes: [] };
 
 export const TRANSITIONS: { id: TransitionKind; label: string }[] = [
   { id: "none", label: "없음" },
@@ -42,6 +44,10 @@ export const MIN_SKIP_SEC = 1;
 export const MIN_GAP_SEC = 1.5;
 /** Never more than this many: the filter text grows with them. */
 export const MAX_DECORATED = 40;
+/** On beats the effects come faster than on cuts, so they may be closer together and more numerous (but flashes are capped lower). */
+export const MIN_BEAT_GAP_SEC = 0.18;
+export const MAX_BEATS = 400;
+const MAX_BEAT_PICTURE: Record<TransitionKind, number> = { none: 0, flash: 150, dip: 150, punch: 100 };
 
 const TRANSITION_IDS = new Set<string>(TRANSITIONS.map((t) => t.id));
 const SOUND_IDS = new Set<string>(CUT_SOUNDS.map((t) => t.id));
@@ -57,10 +63,31 @@ export function normalizeEffects(x?: Partial<EffectsOpts> | null): EffectsOpts {
     endingSound: x?.endingSound === true,
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0.1, volume)) : d.volume,
     allCuts: x?.allCuts === true,
+    beatTimes: sanitizeBeatTimes(x?.beatTimes),
   };
 }
 
+/** Finite, non-negative, sorted, rounded to a millisecond, without near-duplicates, at most MAX_BEATS. */
+export function sanitizeBeatTimes(x: unknown): number[] {
+  if (!Array.isArray(x)) return [];
+  const t = x.filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0).map((v) => Math.round(v * 1000) / 1000).sort((a, b) => a - b);
+  const out: number[] = [];
+  for (const v of t) {
+    if (out.length && v - out[out.length - 1] < MIN_BEAT_GAP_SEC) continue;
+    if (out.length >= MAX_BEATS) break;
+    out.push(v);
+  }
+  return out;
+}
+
 export const hasEffects = (o: EffectsOpts) => o.transition !== "none" || o.cutSound !== "none" || o.hookSound || o.endingSound;
+
+/** The beats to decorate: inside the video (not at its very start or end), and not more than the picture effect can bear. */
+export function pickBeats(beats: number[], outSec: number, o: EffectsOpts): number[] {
+  const inside = beats.filter((b) => b >= 0.1 && b <= outSec - 0.1);
+  const cap = o.transition === "none" ? MAX_BEATS : MAX_BEAT_PICTURE[o.transition];
+  return inside.slice(0, cap);
+}
 
 /** Where the pieces of a joined video meet: the time in the result, and how much of the source was skipped just before it. */
 export type CutPoint = { t: number; skippedSec: number };
@@ -133,7 +160,12 @@ export function planEffects(
   o: EffectsOpts,
   size: { w: number; h: number },
 ): EffectsPlan {
-  const cuts = o.transition === "none" && o.cutSound === "none" ? [] : pickCuts(input.pieces ? cutPoints(input.pieces) : [], input.outSec, o);
+  const cuts =
+    o.transition === "none" && o.cutSound === "none"
+      ? []
+      : o.beatTimes.length
+        ? pickBeats(o.beatTimes, input.outSec, o)
+        : pickCuts(input.pieces ? cutPoints(input.pieces) : [], input.outSec, o);
   const sounds: SoundEvent[] = [];
   if (o.cutSound !== "none") for (const c of cuts) sounds.push({ kind: o.cutSound, at: c });
   if (o.hookSound && input.hook) sounds.push({ kind: "pop", at: 0 });

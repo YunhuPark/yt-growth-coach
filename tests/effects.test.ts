@@ -10,9 +10,12 @@ import {
   DEFAULT_EFFECTS,
   hasEffects,
   MAX_DECORATED,
+  MAX_BEATS,
   normalizeEffects,
+  pickBeats,
   pickCuts,
   planEffects,
+  sanitizeBeatTimes,
   soundGraph,
   transitionFilters,
   type EffectsOpts,
@@ -122,6 +125,38 @@ const ff = (args: string[]) => {
 };
 /** An 8x8 gray thumbnail of the frame at `at`, as bytes: enough to tell whether two frames are the same picture. */
 const thumb = (file: string, at: number) => [...ff(["-ss", String(at), "-i", file, "-frames:v", "1", "-vf", "scale=8:8", "-pix_fmt", "gray", "-f", "rawvideo", "-"]).stdout];
+describe("effects on beats", () => {
+  const size = { w: 1080, h: 1920 };
+  it("cleans the beat times it is given", () => {
+    assert.deepEqual(sanitizeBeatTimes([2, 1, 1.05, -3, Number.NaN, "x", 3.0004]), [1, 2, 3]);
+    assert.deepEqual(sanitizeBeatTimes("nope"), []);
+    assert.equal(sanitizeBeatTimes(Array.from({ length: 5000 }, (_, i) => i)).length, MAX_BEATS);
+    assert.deepEqual(normalizeEffects({ beatTimes: [3, 1] }).beatTimes, [1, 3]);
+    assert.deepEqual(normalizeEffects(undefined).beatTimes, []);
+  });
+  it("keeps beats inside the video and caps the picture effects lower than sounds", () => {
+    const beats = Array.from({ length: 300 }, (_, i) => 0.05 + i * 0.25);
+    assert.ok(pickBeats(beats, 20, opts({ transition: "flash" })).every((b) => b >= 0.1 && b <= 19.9));
+    assert.equal(pickBeats(beats, 1000, opts({ transition: "flash" })).length, 150);
+    assert.equal(pickBeats(beats, 1000, opts({ transition: "punch" })).length, 100);
+    assert.equal(pickBeats(beats, 1000, opts({ cutSound: "tick" })).length, 299, "all but the one in the first tenth of a second");
+  });
+  it("uses the beats instead of the cuts, whatever the cuts are", () => {
+    const pieces = [{ start: 0, end: 3 }, { start: 6, end: 9 }];
+    const input = { pieces, outSec: 6, hook: false, endingFrom: null };
+    const p = planEffects(input, opts({ transition: "flash", cutSound: "tick", beatTimes: [0.5, 1, 1.5, 2] }), size);
+    assert.deepEqual(p.cuts, [0.5, 1, 1.5, 2]);
+    assert.equal(p.videoFilters.length, 4);
+    assert.deepEqual(p.sounds.map((s) => s.at), [0.5, 1, 1.5, 2]);
+    // without beats the same call decorates the one big cut
+    assert.deepEqual(planEffects(input, opts({ transition: "flash" }), size).cuts, [3]);
+  });
+  it("decorates beats of a video that was not cut at all", () => {
+    const p = planEffects({ pieces: null, outSec: 5, hook: false, endingFrom: null }, opts({ cutSound: "pop", beatTimes: [1, 2, 3] }), size);
+    assert.equal(p.sounds.length, 3);
+  });
+});
+
 const mean = (a: number[]) => a.reduce((n, x) => n + x, 0) / a.length;
 const diff = (a: number[], b: number[]) => mean(a.map((x, i) => Math.abs(x - b[i])));
 /** Mean volume in dB of `len` seconds of audio from `at`. */
@@ -205,6 +240,14 @@ describe("rendering with effects", { skip: !canRender ? "needs the bundled ffmpe
     assert.deepEqual(none.r.effects, { transitions: 0, sounds: 0 });
     const off = await make("off", src, cut);
     assert.equal(off.r.effects, undefined);
+  });
+
+  it("flashes on the beats it is given, in a video that was not cut", async () => {
+    const plain = await make("beat0", src, { trimStart: 0, trimEnd: 8 });
+    const beat = await make("beat1", src, { trimStart: 0, trimEnd: 8, effects: { transition: "flash", cutSound: "tick", volume: 1, beatTimes: [2, 4, 6] } });
+    assert.deepEqual(beat.r.effects, { transitions: 3, sounds: 3 });
+    for (const t of [2, 4, 6]) assert.ok(diff(thumb(beat.mp4, t), thumb(plain.mp4, t)) > 20, `bright at ${t}`);
+    for (const t of [1, 3, 5]) assert.ok(diff(thumb(beat.mp4, t), thumb(plain.mp4, t)) < 2, `unchanged at ${t}`);
   });
 
   it("decorates short pauses only when asked to", async () => {

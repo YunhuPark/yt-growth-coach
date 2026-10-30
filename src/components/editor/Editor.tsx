@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import AutoCut from "./AutoCut";
 import AutoEdit from "./AutoEdit";
 import AutoReframe from "./AutoReframe";
+import BeatSync from "./BeatSync";
 import { DEMO, DEMO_TOOL } from "@/lib/shared/demo";
 import { CaptionStyleProvider } from "./captionStyleContext";
 import { EffectsProvider } from "./effectsContext";
@@ -19,7 +20,7 @@ import SourcePanel from "./SourcePanel";
 import { EMPTY_SOURCE, sourceName, sourceReady, type SourceState } from "./source";
 import UrlPlan from "./UrlPlan";
 
-type Tool = "shorts" | "auto" | "cut" | "frame" | "retention" | "url";
+type Tool = "shorts" | "auto" | "cut" | "frame" | "beats" | "retention" | "url";
 type StepId = "task" | "video" | "style" | "run";
 
 const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean; /** the video can be skipped */ optionalVideo?: boolean }[] = [
@@ -27,6 +28,7 @@ const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai
   { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
   { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
   { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
+  { id: "beats", icon: "wave", title: "박자에 맞춰 효과 넣기", blurb: "영상 속 음악의 박자를 찾아, 박자마다 번쩍임·확대·효과음을 넣어 줍니다.", uses: "local", needsVideo: true },
   { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 영상이 있으면 그 구간을 보고 바로 편집본도 만들어요.", uses: "local", needsVideo: true, optionalVideo: true },
   { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
 ];
@@ -181,6 +183,7 @@ export default function Editor() {
                   {tool.id === "auto" && <AutoEdit key={layout} topic="" layout={layout} source={source} />}
                   {tool.id === "cut" && <AutoCut source={source} />}
                   {tool.id === "frame" && <AutoReframe source={source} />}
+                  {tool.id === "beats" && <BeatSync source={source} />}
                   {tool.id === "retention" && <RetentionTool source={source} />}
                   {tool.id === "url" && <UrlPlan topic="" source={source} />}
                 </div>
