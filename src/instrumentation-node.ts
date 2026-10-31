@@ -45,6 +45,7 @@ function scheduleWeekly() {
 }
 
 export function registerNode() {
+  if (process.env.NEXT_PUBLIC_DEMO === "1") return; // the public demo has no channel, no sign-in and nothing to collect
   scheduleCollection();
   scheduleWeekly();
 }
