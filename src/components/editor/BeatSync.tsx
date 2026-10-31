@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { BeatAnalysis } from "@/lib/editor/beatAnalysis";
-import { beatsInResult, beatsWithin, bpmOf, everyNth, planBeatCuts, scaleBeats, shiftBeats, snapToBeats } from "@/lib/editor/beats";
+import { beatsInResult, beatsWithin, beatTrust, bpmOf, everyNth, planBeatCuts, scaleBeats, shiftBeats, snapToBeats } from "@/lib/editor/beats";
 import { CUT_SOUNDS, TRANSITIONS, type CutSound, type TransitionKind } from "@/lib/editor/effects";
 import { parseNumber } from "@/lib/editor/retention";
 import { useReframeOption } from "./framingContext";
@@ -22,11 +22,12 @@ const TARGETS = [15, 30, 45, 60];
 const TEST_SEC = 15;
 const clock = (sec: number) => `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).padStart(4, "0")}`;
 
-/** What the regularity says about how far to trust the beats. */
-function trust(regularity: number): { label: string; cls: string; advice: string } {
-  if (regularity >= 0.8) return { label: "박자가 고름", cls: "chip-local", advice: "" };
-  if (regularity >= 0.5) return { label: "조금 불규칙", cls: "chip", advice: "박자가 군데군데 흔들립니다. 먼저 15초만 만들어 확인해 보세요." };
-  return { label: "불규칙", cls: "rounded-md bg-bad/15 px-2 py-0.5 text-xs font-semibold text-bad", advice: "박자가 고르지 않은 소리(말소리가 큰 영상, 박자가 자유로운 음악)라 효과가 어긋날 가능성이 큽니다." };
+/** What the beats' evenness and onset support say about how far to trust them. */
+function trust(regularity: number, support: number): { label: string; cls: string; advice: string } {
+  const t = beatTrust(regularity, support);
+  if (t === "high") return { label: "박자가 뚜렷함", cls: "chip-local", advice: "" };
+  if (t === "medium") return { label: "조금 불확실", cls: "chip", advice: "박자가 고르지 않거나 실제 소리와 맞는 정도가 낮습니다. 먼저 15초만 만들어 확인해 보세요." };
+  return { label: "불확실", cls: "rounded-md bg-bad/15 px-2 py-0.5 text-xs font-semibold text-bad", advice: "박자가 뚜렷하지 않은 소리(말소리가 큰 영상, 박자가 자유로운 음악)라 효과가 어긋날 가능성이 큽니다." };
 }
 
 /**
@@ -162,7 +163,7 @@ export default function BeatSync({ source }: { source: SourceState }) {
     await followRender(fd, (m) => setMade((cur) => ({ ...cur, [key]: { ...({ state: "running", progress: 0 } as Made), ...cur[key], ...m } })));
   };
 
-  const t = found ? trust(found.regularity) : null;
+  const t = found ? trust(found.regularity, found.support) : null;
   const busy = made.test?.state === "running" || made.full?.state === "running";
 
   return (

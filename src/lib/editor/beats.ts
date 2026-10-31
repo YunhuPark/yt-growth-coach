@@ -53,6 +53,28 @@ export function regularity(beats: number[]): number {
   return Math.round((iv.filter((x) => Math.abs(x - m) <= 0.12 * m).length / iv.length) * 100) / 100;
 }
 
+/**
+ * The share of beats with a real sound onset within `tolerance` seconds. The tracker fills in the beats it did not hear, so evenly
+ * spaced beats alone prove little; beats that mostly sit on onsets are the ones to trust.
+ */
+export function supportOf(beats: number[], onsets: number[], tolerance = 0.06): number {
+  if (!beats.length || !onsets.length) return 0;
+  const o = [...onsets].sort((a, b) => a - b);
+  let j = 0;
+  let hit = 0;
+  for (const b of beats) {
+    while (j < o.length - 1 && o[j + 1] <= b) j++;
+    if (Math.abs(o[j] - b) <= tolerance || (j + 1 < o.length && Math.abs(o[j + 1] - b) <= tolerance)) hit++;
+  }
+  return Math.round((hit / beats.length) * 100) / 100;
+}
+
+export type Trust = "high" | "medium" | "low";
+
+/** How far to trust the beats: both even spacing and onsets under the beats must be high. Tuned on synthetic sounds only. */
+export const beatTrust = (regularity: number, support: number): Trust =>
+  regularity >= 0.8 && support >= 0.8 ? "high" : regularity < 0.5 || support < 0.5 ? "low" : "medium";
+
 /** Twice the tempo (a beat added halfway between each two) or half of it (every other beat). The tracker often picks one octave off. */
 export function scaleBeats(beats: number[], mode: "same" | "double" | "half"): number[] {
   if (mode === "same" || beats.length < 2) return [...beats];

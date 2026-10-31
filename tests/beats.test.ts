@@ -7,7 +7,9 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { analyzeBeats, findBeats, loudnessOf, NoSoundError } from "../src/lib/editor/beatAnalysis";
 import { renderVideo } from "../src/lib/editor/render";
-import { beatPeriod, beatsInResult, beatsWithin, bpmOf, everyNth, loudnessBetween, nearestBeat, planBeatCuts, regularity, scaleBeats, shiftBeats, snapToBeats } from "../src/lib/editor/beats";
+import { withBeatEffects } from "../src/lib/editor/beatEffects";
+import type { BeatAnalysis } from "../src/lib/editor/beatAnalysis";
+import { beatPeriod, beatsInResult, beatTrust, beatsWithin, bpmOf, everyNth, loudnessBetween, nearestBeat, planBeatCuts, regularity, scaleBeats, shiftBeats, snapToBeats, supportOf } from "../src/lib/editor/beats";
 
 const grid = (period: number, n: number, from = 0) => Array.from({ length: n }, (_, i) => Math.round((from + i * period) * 1000) / 1000);
 
@@ -29,6 +31,24 @@ describe("tempo and regularity", () => {
     const b = grid(0.5, 30).filter((_, i) => i !== 10);
     assert.ok(regularity(b) > 0.9);
     assert.equal(bpmOf(b), 120);
+  });
+});
+
+describe("support and trust", () => {
+  it("is the share of beats with an onset close by", () => {
+    const beats = [1, 2, 3, 4];
+    assert.equal(supportOf(beats, [1.01, 2.02, 2.97, 4.05]), 1);
+    assert.equal(supportOf(beats, [1.01, 2.5]), 0.25);
+    assert.equal(supportOf(beats, []), 0);
+    assert.equal(supportOf([], [1]), 0);
+    assert.equal(supportOf(beats, [0.5, 1.5, 2.5, 3.5]), 0, "onsets between the beats do not count");
+  });
+  it("trusts beats that are even and on onsets, and only those", () => {
+    assert.equal(beatTrust(1, 1), "high");
+    assert.equal(beatTrust(0.98, 0.64), "medium", "even but mostly filled in");
+    assert.equal(beatTrust(0.72, 0.95), "medium");
+    assert.equal(beatTrust(0.3, 0.9), "low");
+    assert.equal(beatTrust(0.9, 0.4), "low");
   });
 });
 
@@ -179,6 +199,8 @@ describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ff
     const a = await analyzeBeats(clip("k120.mp4", 120, 24), path.join(dir, "w1"));
     assert.ok(Math.abs(a.bpm - 120) < 1.5, `bpm ${a.bpm}`);
     assert.ok(a.regularity > 0.9, `regularity ${a.regularity}`);
+    assert.ok(a.support >= 0.9, `support ${a.support}`);
+    assert.equal(beatTrust(a.regularity, a.support), "high");
     assert.equal(a.fromSec, 0);
     assert.ok(Math.abs(a.duration - 24) < 0.3);
     // every beat is on the 0.5 s grid of the kicks, within a few hundredths of a second
@@ -207,6 +229,14 @@ describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ff
     await assert.rejects(analyzeBeats(clip("short.mp4", 120, 3), path.join(dir, "w5")), /너무 짧/);
   });
 
+  it("does not trust the beats it finds in a tone that merely switches on and off", async () => {
+    const f = path.join(dir, "gated.mp4");
+    const r = spawnSync(FFM, ["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=160x90:r=10:d=40", "-f", "lavfi", "-i", "sine=frequency=220:duration=40", "-af", "volume='if(lt(mod(t,4),2.2),0.5,0)':eval=frame", "-shortest", "-pix_fmt", "yuv420p", f]);
+    assert.equal(r.status, 0, String(r.stderr));
+    const a = await analyzeBeats(f, path.join(dir, "w7"));
+    assert.notEqual(beatTrust(a.regularity, a.support), "high", `regularity ${a.regularity}, support ${a.support}`);
+  });
+
   it("measures how loud each part of the sound is", async () => {
     const p = 0.5;
     const amp = "if(between(t,20,40),0.9,0.15)";
@@ -223,8 +253,8 @@ describe("analyzeBeats on a synthetic drum loop", { skip: !hasFfmpeg ? "needs ff
 
   it("returns no beats instead of failing for something it cannot read", () => {
     assert.equal(loudnessOf(new Float32Array(0), 3).values.length, 0);
-    assert.deepEqual(findBeats(new Float32Array(100)), { beats: [] });
-    assert.deepEqual(findBeats(new Float32Array(22050 * 5)), { beats: [] }, "silence has no beats");
+    assert.deepEqual(findBeats(new Float32Array(100)), { beats: [], support: 0 });
+    assert.deepEqual(findBeats(new Float32Array(22050 * 5)), { beats: [], support: 0 }, "silence has no beats");
   });
 });
 
@@ -252,5 +282,76 @@ describe("a beat montage keeps the pulse", { skip: !canRender ? "needs ffmpeg an
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("withBeatEffects", { skip: !hasFfmpeg ? "needs ffmpeg" : false, timeout: 240_000 }, () => {
+  let dir: string;
+  let drum: string;
+  let mute: string;
+  const make = (name: string, audio: boolean) => {
+    const p = 0.5;
+    const kick = `aevalsrc='(lt(mod(t,${p}),0.08))*sin(2*PI*(60+120*exp(-mod(t,${p})*60))*t)*exp(-mod(t,${p})*25)*0.9':d=30:s=44100`;
+    const f = path.join(dir, name);
+    const args = ["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=160x90:r=10:d=30"];
+    if (audio) args.push("-f", "lavfi", "-i", kick, "-shortest");
+    const r = spawnSync(FFM, [...args, "-pix_fmt", "yuv420p", f]);
+    assert.equal(r.status, 0, String(r.stderr));
+    return f;
+  };
+  before(() => {
+    dir = mkdtempSync(path.join(tmpdir(), "ytgc-be-"));
+    drum = make("drum.mp4", true);
+    mute = make("mute.mp4", false);
+  });
+  after(() => rmSync(dir, { recursive: true, force: true }));
+
+  const base = { layout: "long" as const, fit: "blur" as const, captions: [] };
+
+  it("does nothing unless beats were asked for, or there is no effect to place", async () => {
+    const a = await withBeatEffects(drum, dir, { ...base, effects: { transition: "flash" } });
+    assert.equal(a.beats, null);
+    const b = await withBeatEffects(drum, dir, { ...base, effects: { onBeats: true } });
+    assert.equal(b.beats, null, "nothing to put on the beats");
+  });
+
+  it("puts the beats of the used parts, as times in the result, into the effects", async () => {
+    const segments = [{ start: 2, end: 6 }, { start: 14, end: 18 }];
+    const r = await withBeatEffects(drum, dir, { ...base, segments, effects: { transition: "flash", cutSound: "tick", onBeats: true } });
+    const t = r.opts.effects?.beatTimes ?? [];
+    assert.ok(t.length >= 14 && t.length <= 18, `${t.length} beats in 8 s of 120 BPM`);
+    assert.ok(t.every((x) => x >= 0 && x <= 8.05));
+    assert.ok(t.some((x) => x < 4) && t.some((x) => x > 4.2), "beats of both pieces");
+    assert.match(r.note ?? "", /1[12]\d BPM/);
+    // they land on the kicks of the source, shifted into the result: every kick is on a multiple of 0.5 s in the source
+    for (const x of t) {
+      const src = x < 4 ? 2 + x : 14 + (x - 4);
+      assert.ok(Math.abs(src - Math.round(src / 0.5) * 0.5) < 0.07, `result ${x} is source ${src}`);
+    }
+  });
+
+  it("works in a folder that does not exist yet, as in a real render", async () => {
+    const fresh = path.join(dir, "not", "yet");
+    const r = await withBeatEffects(drum, fresh, { ...base, effects: { transition: "flash", onBeats: true } });
+    assert.ok((r.beats ?? 0) > 30, `${r.beats}`);
+  });
+
+  it("takes every Nth beat", async () => {
+    const all = await withBeatEffects(drum, dir, { ...base, effects: { transition: "flash", onBeats: true, beatEvery: 1 } });
+    const four = await withBeatEffects(drum, dir, { ...base, effects: { transition: "flash", onBeats: true, beatEvery: 4 } });
+    const n1 = all.opts.effects?.beatTimes?.length ?? 0;
+    const n4 = four.opts.effects?.beatTimes?.length ?? 0;
+    assert.ok(n1 > 50 && Math.abs(n4 - Math.ceil(n1 / 4)) <= 1, `${n1} and ${n4}`);
+  });
+
+  it("falls back to the cuts, and says so, for a video without sound or without a steady beat", async () => {
+    const m = await withBeatEffects(mute, dir, { ...base, effects: { transition: "flash", onBeats: true } });
+    assert.equal(m.opts.effects?.onBeats, false);
+    assert.equal(m.opts.effects?.beatTimes, undefined);
+    assert.match(m.note ?? "", /컷에 넣었습니다/);
+    const weak = async () => ({ duration: 30, fromSec: 0, analyzedSec: 30, bpm: 90, beats: [1, 1.2, 2.4, 2.5, 4, 4.1, 5.9, 6, 7.7, 8.5, 9], regularity: 0.2, support: 0.3, loudness: { fromSec: 0, stepSec: 0.25, values: [] } }) as BeatAnalysis;
+    const w = await withBeatEffects(drum, dir, { ...base, effects: { transition: "flash", onBeats: true } }, { analyze: weak });
+    assert.match(w.note ?? "", /뚜렷하지 않/);
+    assert.equal(w.opts.effects?.onBeats, false);
   });
 });

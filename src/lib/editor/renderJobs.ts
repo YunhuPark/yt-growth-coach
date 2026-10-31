@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { withAutoReframe } from "./autoReframe";
+import { withBeatEffects } from "./beatEffects";
 import type { Target } from "./reframe";
 import { renderVideo, type RenderOpts } from "./render";
 import { addMeta, timed, tracked } from "../shared/usage";
@@ -48,6 +49,9 @@ export function startRenderJob(args: {
             opts = tracked.opts;
             job.note = tracked.note;
           }
+          const beat = await timed("박자 찾기", () => withBeatEffects(args.input, args.dir, opts, { onStage: (st) => (job.stage = st) }));
+          opts = beat.opts;
+          if (beat.note) job.note = job.note ? `${job.note} ${beat.note}` : beat.note;
           job.stage = undefined;
           const r = await renderVideo(args.input, args.dir, opts, (f) => {
             job.progress = f;

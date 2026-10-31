@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import MusicTempo from "music-tempo";
-import { bpmOf, regularity, type Loudness } from "./beats";
+import { bpmOf, regularity, supportOf, type Loudness } from "./beats";
 import { probe, run } from "./render";
 
 // Finds the beats of the sound of a video, on this computer: ffmpeg writes the sound as plain numbers and the music-tempo package
@@ -28,6 +28,8 @@ export type BeatAnalysis = {
   beats: number[];
   /** how evenly spaced they are, 0 to 1 */
   regularity: number;
+  /** the share of beats that fall on a real sound onset (the tracker fills in beats it did not hear), 0 to 1 */
+  support: number;
   /** how loud the listened stretch is along its length, for picking the strong parts */
   loudness: Loudness;
 };
@@ -56,16 +58,17 @@ export async function analyzeBeats(input: string, dir: string, opts: { startSec?
 
   const found = findBeats(samples);
   const beats = found.beats.map((b) => Math.round((b + fromSec) * 1000) / 1000);
-  return { duration: info.duration, width: info.width, height: info.height, fromSec, analyzedSec, bpm: bpmOf(beats), beats, regularity: regularity(beats), loudness: loudnessOf(samples, fromSec) };
+  return { duration: info.duration, width: info.width, height: info.height, fromSec, analyzedSec, bpm: bpmOf(beats), beats, regularity: regularity(beats), support: found.support, loudness: loudnessOf(samples, fromSec) };
 }
 
 /** The beat times (seconds from the start of the samples) of mono sound at SAMPLE_RATE. Empty when no beat is found. */
-export function findBeats(samples: Float32Array): { beats: number[] } {
+export function findBeats(samples: Float32Array): { beats: number[]; support: number } {
   try {
     const mt = new MusicTempo(samples as unknown as ArrayLike<number>, { ...TUNING });
-    return { beats: Array.isArray(mt.beats) ? mt.beats.filter((b) => Number.isFinite(b)) : [] };
+    const beats = Array.isArray(mt.beats) ? mt.beats.filter((b) => Number.isFinite(b)) : [];
+    return { beats, support: supportOf(beats, Array.isArray(mt.events) ? mt.events : []) };
   } catch {
-    return { beats: [] }; // too little or too even a sound for the algorithm to say anything
+    return { beats: [], support: 0 }; // too little or too even a sound for the algorithm to say anything
   }
 }
 

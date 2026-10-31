@@ -21,9 +21,13 @@ export type EffectsOpts = {
   allCuts: boolean;
   /** times in the result at which to put the transition and sound, instead of at the cuts (the beats of the music, see beats.ts) */
   beatTimes: number[];
+  /** ask the render to find the beats of the music itself and put the transition and sound on them (beatEffects.ts) */
+  onBeats: boolean;
+  /** with onBeats: on every beat, every second or every fourth */
+  beatEvery: 1 | 2 | 4;
 };
 
-export const DEFAULT_EFFECTS: EffectsOpts = { transition: "none", cutSound: "none", hookSound: false, endingSound: false, volume: 0.5, allCuts: false, beatTimes: [] };
+export const DEFAULT_EFFECTS: EffectsOpts = { transition: "none", cutSound: "none", hookSound: false, endingSound: false, volume: 0.5, allCuts: false, beatTimes: [], onBeats: false, beatEvery: 1 };
 
 export const TRANSITIONS: { id: TransitionKind; label: string }[] = [
   { id: "none", label: "없음" },
@@ -64,6 +68,8 @@ export function normalizeEffects(x?: Partial<EffectsOpts> | null): EffectsOpts {
     volume: Number.isFinite(volume) ? Math.min(1, Math.max(0.1, volume)) : d.volume,
     allCuts: x?.allCuts === true,
     beatTimes: sanitizeBeatTimes(x?.beatTimes),
+    onBeats: x?.onBeats === true,
+    beatEvery: x?.beatEvery === 2 || x?.beatEvery === 4 ? x.beatEvery : 1,
   };
 }
 

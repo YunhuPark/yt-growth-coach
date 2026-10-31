@@ -32,6 +32,9 @@ const Options = z.object({
       allCuts: z.boolean().optional(),
       // times in the result at which to put the effects instead of at the cuts: the beats of the music
       beatTimes: z.array(z.number().min(0).max(14400)).max(2000).optional(),
+      // find the beats of the music while rendering and put the effects on them
+      onBeats: z.boolean().optional(),
+      beatEvery: z.union([z.literal(1), z.literal(2), z.literal(4)]).optional(),
     })
     .optional(),
   // Vertical result from a wider video: follow the person. `auto` finds them here; `keyframes` is a path the page already worked out.

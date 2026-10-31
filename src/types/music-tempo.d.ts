@@ -6,5 +6,7 @@ declare module "music-tempo" {
     tempo: number;
     /** beat times in seconds */
     beats: number[];
+    /** times of the sound onsets the beats were tracked from */
+    events: number[];
   }
 }
