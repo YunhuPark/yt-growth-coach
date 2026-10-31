@@ -1,6 +1,6 @@
 # 사용한 외부 소프트웨어
 
-이 프로젝트가 쓰는 것들과 그 라이선스입니다. 패키지 목록은 `package.json`과 설치된 `node_modules/*/package.json`의 `license` 항목에서 옮겼습니다(버전은 작성 시점). 이 저장소 자체의 라이선스는 아직 정하지 않았습니다.
+이 프로젝트가 쓰는 것들과 그 라이선스입니다. 패키지 목록은 `package.json`과 설치된 `node_modules/*/package.json`의 `license` 항목에서 옮겼습니다(버전은 작성 시점). 이 저장소 자체는 MIT 라이선스입니다(`LICENSE`).
 
 ## 실행에 쓰는 패키지
 
