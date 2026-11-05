@@ -108,7 +108,12 @@ export async function extractAudio(input: string, dir: string, maxSec = MAX_TRAN
   await fs.mkdir(dir, { recursive: true });
   const file = "speech.f32";
   const { code, stderr } = await run(
-    ["-y", "-hide_banner", "-loglevel", "error", ...(startSec > 0 ? ["-ss", String(startSec)] : []), "-i", input, "-vn", "-t", String(maxSec), "-ac", "1", "-ar", "16000", "-f", "f32le", file],
+    ["-y", "-hide_banner", "-loglevel", "error", ...(startSec > 0 ? ["-ss", String(startSec)] : []), "-i", input, "-vn", "-t", String(maxSec),
+      // A webcam or phone recording is often far quieter than the speech model expects (the one tried here averaged -41 dB).
+      // Raising it to a normal speaking level made the model hear "영실을 갔어"/"집을 왔어" where it had heard "응시를 갔어"/"불러왔어".
+      // Noise reduction is left out on purpose: afftdn made the model repeat "음" hundreds of times.
+      "-af", "loudnorm=I=-20:TP=-2:LRA=11",
+      "-ac", "1", "-ar", "16000", "-f", "f32le", file],
     dir,
     10 * 60_000,
   );

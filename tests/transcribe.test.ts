@@ -158,6 +158,16 @@ describe("audio extraction", { skip: !existsSync(FFMPEG), timeout: 60_000 }, () 
     assert.ok(all.some((v) => Math.abs(v) > 0.1), "has signal");
   });
 
+  it("raises a very quiet recording to a speaking level before it reaches the speech model", async () => {
+    // a 300 Hz tone at about -41 dB, like the webcam recording whose speech was misheard until it was made louder
+    const src = make("quiet.mp4", ["-f", "lavfi", "-i", "sine=frequency=300:duration=6,volume=-41dB", "-f", "lavfi", "-i", "color=s=64x64:r=5:d=6", "-shortest", "-pix_fmt", "yuv420p"]);
+    const s = await extractAudio(src, path.join(dir, "wq"), 100);
+    const rmsDb = 20 * Math.log10(Math.sqrt(s.reduce((a, v) => a + v * v, 0) / s.length));
+    assert.ok(rmsDb > -30, `still ${rmsDb.toFixed(1)} dB`);
+    assert.ok(rmsDb < -12, `too loud: ${rmsDb.toFixed(1)} dB`);
+    assert.ok(s.every((v) => Math.abs(v) <= 1), "no clipping");
+  });
+
   it("transcribeVideo hands the samples to the engine and cleans what comes back", async () => {
     const src = make("b.mp4", ["-f", "lavfi", "-i", "sine=frequency=300:duration=3", "-f", "lavfi", "-i", "color=s=64x64:r=5:d=3", "-shortest", "-pix_fmt", "yuv420p"]);
     let got = 0;

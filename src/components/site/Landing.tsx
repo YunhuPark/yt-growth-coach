@@ -205,6 +205,7 @@ export default function Landing() {
           <nav className="flex gap-5" aria-label="바로가기">
             <Link href="/edit" className="inline-block py-2 hover:text-foreground">영상 편집</Link>
             {!DEMO && <Link href="/channel" className="inline-block py-2 hover:text-foreground">채널 분석</Link>}
+            <Link href="/privacy" className="inline-block py-2 hover:text-foreground">개인정보 처리방침</Link>
             <a href="https://github.com/YunhuPark/yt-growth-coach" className="inline-block py-2 hover:text-foreground">GitHub</a>
           </nav>
         </div>

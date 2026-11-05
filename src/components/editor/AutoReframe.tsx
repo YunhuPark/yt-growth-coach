@@ -53,7 +53,10 @@ export default function AutoReframe({ source }: { source: SourceState }) {
   const [zoomChoice, setZoomChoice] = useState<ZoomChoice>("auto");
   const [picks, setPicks] = useState<number[]>([]);
   const [smooth, setSmooth] = useState(3);
-  const [fixed, setFixed] = useState(false);
+  // null until the person chooses: then it follows what the footage suggests (a close-up is better held still than followed by the middle of its box)
+  const [fixedChoice, setFixedChoice] = useState<boolean | null>(null);
+  /** the crop moved sideways by this many percent of the picture width, for when the middle of the detected box is not the face */
+  const [shift, setShift] = useState(0);
   const [from, setFrom] = useState("0");
   const [to, setTo] = useState("60");
   const [rendering, setRendering] = useState(false);
@@ -103,6 +106,13 @@ export default function AutoReframe({ source }: { source: SourceState }) {
 
   // Everything below is recomputed on the page whenever a control changes; nothing talks to the server.
   const tracked = useMemo(() => (found ? assignTracks(found.looks) : []), [found]);
+  // A person filmed close up fills the picture: the box then takes in shoulders and arms, and its middle is not where the face is.
+  // On a real close-up recording the followed crop cut the face in all four frames checked, the fixed middle in one.
+  const closeUp = useMemo(() => {
+    const w = (found?.looks ?? []).flatMap((l) => l.boxes.filter((b) => labelOf(b) === "person").map((b) => b.x1 - b.x0)).sort((a, b) => a - b);
+    return w.length > 0 && w[w.length >> 1] > 0.45;
+  }, [found]);
+  const fixed = fixedChoice ?? closeUp;
   const zoom = useMemo(() => {
     if (!found) return 1;
     return zoomChoice === "auto" ? suggestZoom(found.looks, target) : Number(zoomChoice);
@@ -110,10 +120,16 @@ export default function AutoReframe({ source }: { source: SourceState }) {
   const cropFrac = found ? cropFraction(found.width, found.height, zoom) : 1;
   const cropHFrac = cropHeightFraction(zoom);
   const samples: Sample[] = useMemo(() => (found ? samplesFromLooks(tracked, { target, cropFrac, picks }) : []), [found, tracked, target, cropFrac, picks]);
-  const keys: Keyframe[] = useMemo(
+  const baseKeys: Keyframe[] = useMemo(
     () => (found ? smoothTrack(samples, { cropFrac, cropHFrac, duration: found.duration, smooth, fixed }) : []),
     [found, samples, cropFrac, cropHFrac, smooth, fixed],
   );
+  // What the camera does, moved sideways by the chosen amount (kept inside the picture); the graph, the previews and the render all use this.
+  const keys: Keyframe[] = useMemo(
+    () => baseKeys.map((k) => ({ ...k, cx: Math.min(1 - cropFrac / 2, Math.max(cropFrac / 2, k.cx + shift / 100)) })),
+    [baseKeys, shift, cropFrac],
+  );
+
   const stats = useMemo(() => trackStats(samples), [samples]);
 
   // The things that can be followed, longest-seen first, for choosing by name instead of by clicking a picture.
@@ -233,8 +249,13 @@ export default function AutoReframe({ source }: { source: SourceState }) {
               <input type="range" min={1} max={5} step={1} value={smooth} onChange={(e) => setSmooth(Number(e.target.value))} disabled={fixed} />
               <span className="text-muted">낮을수록 바짝, 높을수록 부드럽게 움직여요.</span>
             </label>
+            <label className="field text-xs">
+              얼굴 위치 맞추기: <b>{shift > 0 ? "+" : ""}{shift}%</b> (← 왼쪽 · 오른쪽 →)
+              <input type="range" min={-30} max={30} step={1} value={shift} onChange={(e) => setShift(Number(e.target.value))} />
+              <span className="text-muted">얼굴이 가장자리에 걸리면 움직여 보세요. 아래 미리보기에 바로 보여요.</span>
+            </label>
             <label className="flex items-start gap-2 text-sm">
-              <input className="mt-1" type="checkbox" checked={fixed} onChange={(e) => setFixed(e.target.checked)} />
+              <input className="mt-1" type="checkbox" checked={fixed} onChange={(e) => setFixedChoice(e.target.checked)} />
               <span>
                 따라가지 않고 가운데 고정
                 <span className="block text-xs text-muted">찾기가 잘 안 맞는 영상에서 쓰세요.</span>
@@ -246,6 +267,9 @@ export default function AutoReframe({ source }: { source: SourceState }) {
             {found.looks.length}장을 보고 {what}을(를) <b>{stats.pct}%</b>에서 찾았어요{picks.length ? " (지정한 것만 센 값)" : ""}.
             {stats.pct < 40 && <span className="text-bad"> 찾은 곳이 적어 대부분 가운데로 잘려요. 대상을 바꾸거나 가운데 고정을 쓰세요.</span>}
           </p>
+          {closeUp && target !== "animal" && (
+            <p className="callout text-xs text-muted">가까이 찍은 영상이에요. 사람 상자가 어깨까지 포함해서 중심이 얼굴과 다를 수 있어, {fixed ? "‘가운데 고정’을 켜 두었어요" : "‘가운데 고정’을 쓰면 나을 수 있어요"}. 얼굴이 잘리면 ‘얼굴 위치 맞추기’로 옮기고, 사람이 많이 움직이면 고정을 끄세요.</p>
+          )}
 
           <div>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">

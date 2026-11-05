@@ -126,7 +126,7 @@ export default function Dashboard() {
       {data.notes.map((n) => (
         <Alert key={n} tone="info">{n}</Alert>
       ))}
-      <nav className="flex gap-1 border-b border-line">
+      <nav className="flex gap-1 overflow-x-auto border-b border-line">
         {(
           [
             ["diagnosis", "내 채널 진단"],
@@ -139,7 +139,7 @@ export default function Dashboard() {
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium sm:px-4 ${
               tab === k ? "border-accent text-foreground" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
@@ -500,15 +500,25 @@ function Discover({ settings, save }: { settings: Settings; save: (s: Settings) 
   };
 
   const added = (id: string) => settings.competitors.includes(id);
-  const toggle = (c: Candidate) =>
-    save({
+  // what the last click did, so a click that changes nothing visible (a full list, a saved setting) is not silent
+  const [note, setNote] = useState<string | null>(null);
+  const toggle = async (c: Candidate) => {
+    if (!added(c.id) && settings.competitors.length >= 8) {
+      setNote("경쟁 채널은 최대 8개예요. 위 ‘경쟁·벤치마크 채널’에서 하나를 지운 뒤 추가하세요.");
+      return;
+    }
+    await save({
       ...settings,
-      competitors: added(c.id)
-        ? settings.competitors.filter((x) => x !== c.id)
-        : [...settings.competitors, c.id].slice(0, 8),
+      competitors: added(c.id) ? settings.competitors.filter((x) => x !== c.id) : [...settings.competitors, c.id],
     });
-  const addKeywords = () =>
-    res && save({ ...settings, keywords: res.profile.search_queries.slice(0, 5) });
+    setNote(added(c.id) ? "경쟁 채널에서 뺐어요." : "경쟁 채널에 추가했어요.");
+  };
+  const addKeywords = async () => {
+    if (!res) return;
+    const keywords = res.profile.search_queries.slice(0, 5);
+    await save({ ...settings, keywords });
+    setNote(`관심 키워드 ${keywords.length}개를 저장했어요. ‘트렌드 수집’에서 쓰입니다.`);
+  };
 
   return (
     <section className="card flex flex-col gap-3">
@@ -551,6 +561,7 @@ function Discover({ settings, save }: { settings: Settings; save: (s: Settings) 
             제외된 {res.excluded.length}개는 아래에서 이유를 볼 수 있습니다.
           </p>
           {res.notes.map((n) => <Alert key={n} tone="info">{n}</Alert>)}
+          <div role="status">{note && <Alert tone="info">{note}</Alert>}</div>
           {res.candidates.length === 0 ? (
             <p className="text-sm text-muted">조건에 맞는 채널을 찾지 못했습니다.</p>
           ) : (
