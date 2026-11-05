@@ -23,7 +23,7 @@ import {
 } from "@/lib/editor/reframe";
 import { useCaptionStyle } from "./captionStyleContext";
 import { api } from "../shared";
-import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
+import { sourceReady, type SourceState } from "./source";
 import ToolIntro from "./ToolIntro";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; progress?: number; error?: string; reframe?: ReframeAnalysis };
@@ -189,19 +189,13 @@ export default function AutoReframe({ source }: { source: SourceState }) {
       <ToolIntro
         icon="frame"
         title="가로 → 세로 자동 프레임"
-        summary="가로 영상을 세로(9:16)로 자를 때 사람·동물·탈것이 화면 밖으로 잘리지 않게 자르는 위치를 자동으로 옮깁니다."
+        summary="가로 영상을 세로로 자를 때, 사람·동물을 따라 화면 위치를 옮겨요."
         steps={["‘찾기 시작’을 누릅니다", "따라갈 대상·확대·카메라 움직임을 조절합니다", "구간을 정하고 ‘세로 쇼츠로 만들기’를 누릅니다"]}
         uses="local"
-      >
-        가로 영상을 세로(9:16)로 자를 때 사람(또는 동물·탈것)이 화면 밖으로 잘리지 않게, 자르는 위치를 자동으로 옮깁니다. 찾기는 이 컴퓨터에서만 하고(영상이 밖으로 나가지 않음),
-          처음 한 번은 인식 모델(약 9MB)을 내려받습니다. 누구를 따라갈지, 얼마나 확대할지, 카메라가 얼마나 빨리 움직일지는 아래에서 눈으로 보고 조절할 수 있습니다.
-      </ToolIntro>
+        notes={["찾기는 이 컴퓨터에서만 해요. 처음 한 번 인식 모델(약 9MB)을 받아요.", "영상 1분에 1분 안팎 걸려요.", "대상·확대·카메라 움직임은 눈으로 보며 조절해요."]}
+      />
 
-      {!hasSource(source) || !sourceReady(source) ? (
-        <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요.</p>
-      ) : (
-        <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상: {sourceName(source)}</p>
-      )}
+      {!sourceReady(source) && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상을 먼저 올려 주세요.</p>}
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
@@ -209,12 +203,12 @@ export default function AutoReframe({ source }: { source: SourceState }) {
         <button className="btn-primary w-fit" onClick={analyze} disabled={!ready}>
           {analyzing ? `${stage}…` : found ? "다시 찾기" : "찾기 시작"}
         </button>
-        <span className="text-xs text-muted">영상 1분당 대략 1분 안팎(컴퓨터에 따라 다름). 0.5초마다 한 장씩 봅니다.</span>
+        <span className="text-xs text-muted">영상 1분에 약 1분 걸려요.</span>
       </div>
 
       {found && (
         <div className="flex flex-col gap-4 rounded-md border border-line p-3">
-          {narrow && <p className="text-sm text-bad">이미 세로 영상이라 자를 필요가 없습니다.</p>}
+          {narrow && <p className="text-sm text-bad">이미 세로 영상이라 자를 필요가 없어요.</p>}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="field text-xs">무엇을 따라갈까요
@@ -231,13 +225,13 @@ export default function AutoReframe({ source }: { source: SourceState }) {
                 <option value="3">3배</option>
               </select>
               {win && zoom > 1 && (
-                <span className="text-muted">원본에서 {win.w}×{win.h}픽셀만 잘라 1080×1920으로 키웁니다. 확대할수록 화면이 흐려집니다.</span>
+                <span className="text-muted">원본의 {win.w}×{win.h}만 잘라 1080×1920으로 키워요. 확대할수록 흐려져요.</span>
               )}
             </label>
             <label className="field text-xs">
               카메라 움직임: <b>{SMOOTH_LABELS[smooth - 1] || `${smooth}단계`}</b> ({smooth}/5)
               <input type="range" min={1} max={5} step={1} value={smooth} onChange={(e) => setSmooth(Number(e.target.value))} disabled={fixed} />
-              <span className="text-muted">낮을수록 바짝 따라가고, 높을수록 천천히 부드럽게 움직입니다.</span>
+              <span className="text-muted">낮을수록 바짝, 높을수록 부드럽게 움직여요.</span>
             </label>
             <label className="flex items-start gap-2 text-sm">
               <input className="mt-1" type="checkbox" checked={fixed} onChange={(e) => setFixed(e.target.checked)} />
@@ -249,19 +243,19 @@ export default function AutoReframe({ source }: { source: SourceState }) {
           </div>
 
           <p className="text-sm">
-            {found.looks.length}장을 보고 {what}을(를) <b>{stats.pct}%</b>에서 찾았습니다{picks.length ? " (지정한 것만 센 값)" : ""}.
-            {stats.pct < 40 && <span className="text-bad"> 찾은 곳이 적어 대부분 가운데 근처로 잘립니다. 작거나 가려진 영상이면 “대상”을 바꿔 보거나 가운데 고정을 쓰세요.</span>}
+            {found.looks.length}장을 보고 {what}을(를) <b>{stats.pct}%</b>에서 찾았어요{picks.length ? " (지정한 것만 센 값)" : ""}.
+            {stats.pct < 40 && <span className="text-bad"> 찾은 곳이 적어 대부분 가운데로 잘려요. 대상을 바꾸거나 가운데 고정을 쓰세요.</span>}
           </p>
 
           <div>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold text-muted">
-                여럿이면 따라갈 것을 고르세요 (사진 속 상자를 누르거나 아래 목록에서 체크). 고르지 않으면 모두가 한 화면에 들어올 때는 가운데, 안 들어올 때는 가장 크게 보이는 것을 따라갑니다.
+                따라갈 것을 고르세요 (여럿일 때). 사진의 상자를 누르거나 아래에서 체크하세요. 안 고르면 가운데나 가장 큰 것을 따라가요.
               </p>
               {picks.length > 0 && <button className="btn" onClick={() => setPicks([])}>지정 해제</button>}
             </div>
             {candidates.length === 0 ? (
-              <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">이 영상에서 “{what}”을(를) 찾지 못했습니다. 위에서 다른 대상을 골라 보세요.</p>
+              <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">“{what}”을(를) 찾지 못했어요. 다른 대상을 골라 보세요.</p>
             ) : (
               <ul className="flex flex-wrap gap-2">
                 {candidates.map((c) => (
@@ -274,7 +268,7 @@ export default function AutoReframe({ source }: { source: SourceState }) {
                 ))}
               </ul>
             )}
-            {picks.length > 0 && <p className="mt-1 text-xs text-muted">지정한 것이 화면에 없는 동안에는 카메라가 마지막 자리를 잠시 지킨 뒤 가운데로 천천히 돌아옵니다. 같은 사람이 다시 나타나면 번호가 다를 수 있으니 그 사람도 체크하세요.</p>}
+            {picks.length > 0 && <p className="mt-1 text-xs text-muted">지정한 것이 안 보이면 카메라가 잠시 멈췄다가 가운데로 돌아와요. 같은 사람이 다시 나오면 번호가 달라질 수 있어요.</p>}
           </div>
 
           <PathGraph duration={found.duration} cropFrac={cropFrac} showY={zoom > 1} keys={keys} samples={samples} from={start} to={end} />

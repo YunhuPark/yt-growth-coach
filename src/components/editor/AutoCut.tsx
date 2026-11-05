@@ -10,7 +10,7 @@ import { useReframeOption } from "./framingContext";
 import ExportMenu from "./ExportMenu";
 import RangePreview from "./RangePreview";
 import { api } from "../shared";
-import { hasSource, sourceName, sourceReady, type SourceState } from "./source";
+import { sourceName, sourceReady, type SourceState } from "./source";
 import ToolIntro from "./ToolIntro";
 
 type AutoStatus = { status: "running" | "done" | "error"; stage: string; error?: string; cut?: CutAnalysis };
@@ -144,13 +144,11 @@ export default function AutoCut({ source }: { source: SourceState }) {
       <ToolIntro
         icon="scissors"
         title="무음·군말 자르기"
-        summary="말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 템포를 빠르게 합니다."
-        steps={["‘소리 분석하기’를 누릅니다", "자를 곳 목록에서 하나씩 들어 보고 체크를 조정합니다", "‘이 컷으로 영상 만들기’ 또는 컷 목록으로 내보냅니다"]}
+        summary="빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 해요."
+        steps={["‘소리 분석하기’를 누릅니다", "자를 곳을 들어 보고 체크를 조정합니다", "‘이 컷으로 영상 만들기’를 누릅니다"]}
         uses="local"
-      >
-        말하는 영상에서 말이 끊긴 빈 구간과 “음…”, “어…” 같은 군말을 잘라 내 템포를 빠르게 합니다. 소리 분석은 이 컴퓨터에서만 하고(AI 서비스로 보내지 않음), 무엇을 자를지는
-          아래에서 하나씩 듣고 켜고 끌 수 있습니다.
-      </ToolIntro>
+        notes={["분석은 이 컴퓨터에서만 해요. AI로 보내지 않아요.", "군말 찾기는 음성 인식을 써요. 처음 한 번 모델(약 240MB)을 받아요.", "군말을 놓치거나 잘못 찾을 수 있어요. 목록을 꼭 확인하세요.", "군말은 앞 30분까지만 찾아요."]}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <fieldset className="flex flex-col gap-2 rounded-md border border-line p-3">
@@ -177,25 +175,18 @@ export default function AutoCut({ source }: { source: SourceState }) {
           <label className="flex items-start gap-2 text-sm">
             <input className="mt-1" type="checkbox" checked={opts.fillers.enabled} onChange={(e) => set("fillers", { enabled: e.target.checked })} />
             <span>
-              “음”, “어”, “으음” 같은 군말 찾기
-              <span className="block text-xs text-muted">
-                음성 인식으로 단어마다 시간을 얻어 찾습니다(이 컴퓨터에서 처리, 영상이 길면 몇 분 걸림, 처음 한 번은 모델 약 240MB 내려받음). 음성 인식은 군말을 빼고 적는 경우도 있어서
-                <b> 못 찾는 군말이 있을 수 있고</b>, 평범한 단어를 군말로 잘못 볼 수도 있으니 목록을 꼭 확인하세요. 앞 30분까지만 찾습니다.
-              </span>
+              “음”, “어” 같은 군말 찾기
+              <span className="block text-xs text-muted">음성 인식을 써서 시간이 더 걸려요.</span>
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm">
             <input className="mt-1" type="checkbox" checked={opts.fillers.loose} onChange={(e) => set("fillers", { loose: e.target.checked })} disabled={!opts.fillers.enabled} />
-            <span>“그…”, “저…”, “뭐…”처럼 길게 끄는 말도 포함 <span className="text-xs text-muted">(진짜 단어일 수 있어 기본은 꺼져 있음)</span></span>
+            <span>“그…”, “저…”처럼 길게 끄는 말도 <span className="block text-xs text-muted">진짜 단어일 수 있어 기본은 꺼져 있어요.</span></span>
           </label>
         </fieldset>
       </div>
 
-      {!hasSource(source) || !sourceReady(source) ? (
-        <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요.</p>
-      ) : (
-        <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상: {sourceName(source)}</p>
-      )}
+      {!sourceReady(source) && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상을 먼저 올려 주세요.</p>}
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
@@ -205,7 +196,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
         </button>
         {needsReanalysis && (
           <span className="text-xs text-bad">
-            {found!.noiseDb !== opts.silence.noiseDb ? "녹음 환경을 바꿨습니다. 다시 분석해야 반영됩니다." : "군말 찾기를 켰습니다. 다시 분석해야 반영됩니다."}
+            {found!.noiseDb !== opts.silence.noiseDb ? "녹음 환경을 바꿨어요. 다시 분석해야 반영돼요." : "군말 찾기를 켰어요. 다시 분석해야 반영돼요."}
           </span>
         )}
       </div>
@@ -224,18 +215,18 @@ export default function AutoCut({ source }: { source: SourceState }) {
 
           {opts.fillers.enabled && cut.fillersAnalyzed && stats.fillers === 0 && (
             <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
-              군말을 찾지 못했습니다. 말이 정말 깔끔했거나, 음성 인식이 군말을 빼고 적었을 수 있습니다.
+              군말을 못 찾았어요. 말이 깔끔했거나, 음성 인식이 군말을 빼고 적었을 수 있어요.
             </p>
           )}
           {tooMany && (
             <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
-              조각이 {stats.pieces}개로 너무 많아 영상으로 만들 수 없습니다(최대 {MAX_PIECES}개). “이 길이 이상 조용하면 자름”을 늘려 보세요. 컷 목록 내보내기는 그대로 됩니다.
+              조각이 {stats.pieces}개라 영상으로 만들 수 없어요(최대 {MAX_PIECES}개). “이 길이 이상 조용하면 자름”을 늘려 보세요. 컷 목록 내보내기는 돼요.
             </p>
           )}
 
           <div>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-muted">자를 곳 {removals.length}곳 · 체크를 끄면 그 부분은 살립니다</p>
+              <p className="text-xs font-semibold text-muted">자를 곳 {removals.length}곳 · 체크를 끄면 살려요</p>
               <div className="flex gap-2">
                 <button className="btn" onClick={() => setOff(new Set())}>모두 자르기</button>
                 <button className="btn" onClick={() => setOff(new Set(removals.map(key)))}>모두 살리기</button>
@@ -255,7 +246,7 @@ export default function AutoCut({ source }: { source: SourceState }) {
                   </span>
                 </li>
               ))}
-              {removals.length === 0 && <li className="px-3 py-3 text-sm text-muted">자를 곳이 없습니다. 기준을 느슨하게 해 보세요.</li>}
+              {removals.length === 0 && <li className="px-3 py-3 text-sm text-muted">자를 곳이 없어요. 기준을 느슨하게 해 보세요.</li>}
             </ul>
           </div>
 
@@ -273,8 +264,8 @@ export default function AutoCut({ source }: { source: SourceState }) {
                 {rendering ? (renderStage ? `${renderStage}…` : `만드는 중… ${Math.round(progress * 100)}%`) : "이 컷으로 영상 만들기"}
               </button>
             </div>
-            <p className="text-xs text-muted">영상은 선택한 형식의 화면(원본 비율이 다르면 배경을 흐리게 채움)으로 만들어지며, 조각 사이에는 아주 짧은 소리 페이드가 들어가 이음매 잡음을 줄입니다. 원본 해상도 그대로 컷만 하려면 위의 컷 목록 EDL을 편집 프로그램에서 쓰세요.</p>
-            {tooLongForShort && <p className="text-xs text-bad">결과가 3분을 넘어 쇼츠로는 만들 수 없습니다. 가로 형식을 고르세요.</p>}
+            <p className="text-xs text-muted">원본 해상도 그대로 컷만 하려면 위의 컷 목록(EDL)을 편집 프로그램에서 쓰세요.</p>
+            {tooLongForShort && <p className="text-xs text-bad">결과가 3분을 넘어 쇼츠로 못 만들어요. 가로 형식을 고르세요.</p>}
             {rendering && (
               <div className="h-2 w-full max-w-md overflow-hidden rounded bg-line" role="progressbar" aria-valuenow={Math.round(progress * 100)}>
                 <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />

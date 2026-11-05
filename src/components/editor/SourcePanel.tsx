@@ -22,7 +22,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       {!hideTitle && (
       <div>
         <h2 className="text-lg font-bold">① 편집할 영상을 고르세요</h2>
-        <p className="text-sm text-muted">한 번 고르면 아래의 모든 작업에서 이 영상을 씁니다. 영상은 이 컴퓨터에서만 처리됩니다.</p>
+        <p className="text-sm text-muted">한 번 고르면 모든 작업에서 써요. 영상은 이 컴퓨터에서만 처리돼요.</p>
       </div>
       )}
 
@@ -59,7 +59,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
       )}
 
       <details className="text-sm" open={!!source.sourcePath && !source.file}>
-        <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">파일이 600MB보다 크거나 길다면: 이 컴퓨터의 파일 경로로 지정하기</summary>
+        <summary className="w-fit py-1 text-sm font-medium text-muted hover:text-foreground">600MB보다 큰 파일은 경로로 지정하기</summary>
         <label className="field mt-2">파일 경로 (예: D:\영상\원본.mp4)
           <input
             className="input"
@@ -88,7 +88,7 @@ export default function SourcePanel({ source, onChange, hideTitle = false }: { s
 
       <div className="flex flex-wrap items-center gap-3">
         <span role="status" className={ready ? "chip-local" : "chip"}>
-          {ready ? `준비됨 · ${sourceName(source)}` : hasSource(source) ? "권리 확인을 마치면 시작할 수 있어요" : "영상을 골라 주세요"}
+          {ready ? `준비됨 · ${sourceName(source)}` : hasSource(source) ? "권리 확인을 마쳐 주세요" : "영상을 골라 주세요"}
         </span>
       </div>
     </section>

@@ -17,10 +17,7 @@ export default function StylePicker({ title = "자막 스타일", bare = false }
       {!bare && (
       <div>
         <h2 className="font-semibold">{title}</h2>
-        <p className="text-xs text-muted">
-          훅 자막과 구간 자막의 모양입니다. 아래 그림은 실제로 영상에 들어가는 방식과 같게 그린 것이고, 고른 스타일은 이 화면의 모든 영상 만들기에 적용됩니다. 건드리지 않으면 기본
-          스타일입니다.
-        </p>
+        <p className="text-xs text-muted">훅·구간 자막의 모양이에요. 고른 스타일은 이 화면의 모든 영상에 적용돼요.</p>
       </div>
       )}
 

@@ -76,12 +76,26 @@ export default function Studio() {
       {saved && (
         <>
           <Sources idea={saved.idea} />
-          <SourcePanel source={source} onChange={setSource} />
-          <StylePicker />
-          <UrlPlan key={`url-${key}`} topic={saved.idea.title} source={source} />
-          <Highlights key={`hl-${key}`} topic={saved.idea.title} source={source} />
-          <AutoEdit key={`auto-${key}`} topic={saved.idea.title} layout={isLongPack(saved.pack) ? "long" : "short"} source={source} />
-          <Edit key={key} pack={saved.pack} />
+          <Fold n={2} title="영상 올리기" open>
+            <SourcePanel source={source} onChange={setSource} hideTitle />
+          </Fold>
+          <Fold n={3} title="자막 스타일 (선택)">
+            <div className="card">
+              <StylePicker bare />
+            </div>
+          </Fold>
+          <Fold n={4} title="유튜브 주소로 분석" ai>
+            <UrlPlan key={`url-${key}`} topic={saved.idea.title} source={source} />
+          </Fold>
+          <Fold n={5} title="긴 영상에서 쇼츠 뽑기" ai>
+            <Highlights key={`hl-${key}`} topic={saved.idea.title} source={source} />
+          </Fold>
+          <Fold n={6} title="한 편 자동 편집" ai>
+            <AutoEdit key={`auto-${key}`} topic={saved.idea.title} layout={isLongPack(saved.pack) ? "long" : "short"} source={source} />
+          </Fold>
+          <Fold n={7} title="패키지로 바로 만들기">
+            <Edit key={key} pack={saved.pack} />
+          </Fold>
         </>
       )}
     </div>
@@ -89,7 +103,20 @@ export default function Studio() {
   );
 }
 
-// ---------------------------------------------------------------- A. source candidates
+/** One numbered step of the studio, folded away until it is needed (a closed <details> keeps what was typed in it). */
+function Fold({ n, title, ai = false, open = false, children }: { n: number; title: string; ai?: boolean; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open}>
+      <summary className="rounded-[10px] border border-line bg-card px-5 py-4 text-base font-bold">
+        {n}. {title}
+        {ai && <span className="chip-ai ml-1">AI 사용</span>}
+      </summary>
+      <div className="mt-3 flex flex-col gap-3">{children}</div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------- 1. source candidates
 
 function Sources({ idea }: { idea: Idea }) {
   const [busy, setBusy] = useState(false);
@@ -118,10 +145,9 @@ function Sources({ idea }: { idea: Idea }) {
     <section className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="font-semibold">A. 소재 후보 찾기</h2>
+          <h2 className="font-semibold">1. 소재 후보 찾기</h2>
           <p className="text-xs text-muted">
-            아이디어의 장면이 있을 만한 원본 영상을 검색해 링크로 보여줍니다. 영상은 내려받지 않으며, 장면 위치는 업로더의 타임스탬프와 시청자 댓글로 짚어
-            줍니다. (API 할당량 약 600 소모)
+            아이디어의 장면이 있을 만한 원본 영상을 찾아 링크로 보여줘요. 영상은 내려받지 않고, 장면 위치는 업로더 타임스탬프와 시청자 댓글로 짚어요. (API 할당량 약 600)
           </p>
         </div>
         <button className="btn-primary" onClick={run} disabled={busy}>
@@ -196,7 +222,7 @@ function Sources({ idea }: { idea: Idea }) {
             </ul>
           )}
           <p className="text-xs text-muted">
-            표시는 제목·채널명으로 한 추정일 뿐입니다. 다른 사람이 편집한 영상을 다시 쓰면 그 편집물의 저작권까지 겹칩니다. 목록은 링크일 뿐이며 사용 가능 여부를 의미하지 않습니다. 방송·공식 영상은 권리자의 정책(팬 편집 허용 범위, 협의 필요 여부)을 직접 확인하세요.
+            표시는 제목·채널명으로 한 추정이에요. 남이 편집한 영상을 다시 쓰면 그 편집물의 저작권까지 겹쳐요. 목록은 링크일 뿐 사용 가능 여부가 아니에요. 방송·공식 영상은 권리자 정책을 직접 확인하세요.
           </p>
         </>
       )}
@@ -320,12 +346,12 @@ function Edit({ pack }: { pack: Pack | LongPack }) {
   return (
     <section className="card flex flex-col gap-4">
       <div>
-        <h2 className="font-semibold">B. 편집 자동화 · {long ? "롱폼 (1920×1080 가로)" : "쇼츠 (1080×1920 세로)"}</h2>
+        <h2 className="font-semibold">{long ? "롱폼 (1920×1080 가로)" : "쇼츠 (1080×1920 세로)"}</h2>
         <p className="text-xs text-muted">
           {long
-            ? "내가 가진 영상 파일에 오프닝 자막, 챕터 제목 카드, 엔딩 화면 문구를 입혀 1920×1080 mp4로 만듭니다. 길이에 따라 몇 분 걸리고 진행률이 표시됩니다."
-            : "내가 가진 영상 파일에 세로 변환, 훅 자막, 구간 자막, 엔딩 CTA 카드를 입혀 쇼츠 규격(1080×1920) mp4로 만듭니다."}{" "}
-          파일은 이 컴퓨터에서만 처리되고 업로드는 직접 하셔야 합니다.
+            ? "내 영상에 오프닝 자막·챕터 제목 카드·엔딩 문구를 입혀 1920×1080 mp4로 만들어요. 몇 분 걸리고 진행률이 보여요."
+            : "내 영상에 세로 변환·훅 자막·구간 자막·엔딩 카드를 입혀 쇼츠(1080×1920) mp4로 만들어요."}{" "}
+          업로드는 직접 하셔야 해요.
         </p>
       </div>
 

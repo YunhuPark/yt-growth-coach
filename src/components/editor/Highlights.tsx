@@ -177,19 +177,21 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
       <ToolIntro
         icon="clapper"
         title="긴 영상에서 쇼츠 뽑기"
-        summary="긴 영상 하나에서 쇼츠로 올리기 좋은 구간을 AI가 점수와 이유까지 붙여 골라 줍니다."
-        steps={["‘쇼츠 구간 찾기’를 누릅니다 (몇 분 걸립니다)","마음에 드는 후보의 훅·자막 문구를 다듬습니다","‘쇼츠 만들기’로 mp4를 만들어 내려받습니다"]}
+        summary="긴 영상에서 쇼츠로 올리기 좋은 구간을 AI가 점수와 이유까지 골라 줘요."
+        steps={["‘쇼츠 구간 찾기’를 누릅니다 (몇 분 걸려요)", "마음에 드는 후보의 훅·자막을 다듬습니다", "‘쇼츠 만들기’로 mp4를 받습니다"]}
         uses="ai"
-      >
-        길이가 긴 영상 하나를 넣으면 AI가 쇼츠로 잘라 올리기 좋은 구간을 점수와 이유까지 붙여 후보로 뽑습니다. 마음에 드는 후보를 고르면 훅 자막과(음성 인식을
-          켰다면) 대사 자막까지 붙여 쇼츠로 만들어 줍니다. 영상은 위 “1. 편집할 영상”에서 고른 것을 씁니다.
-      </ToolIntro>
+        notes={[
+          "AI에는 장면 이미지와 인식된 대사 글자만 보내요. 영상 파일과 소리는 안 나가요.",
+          "음성 인식은 이 컴퓨터에서 해요. 처음 한 번 모델(약 240MB)을 받고, 앞 30분까지만 인식해요.",
+          "AI를 쓴 만큼 비용이 들어요.",
+        ]}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="field">원본 영상 주소 (선택 · 시청자가 댓글로 짚은 인기 구간을 후보에 반영)
-          <input className="input" placeholder="https://www.youtube.com/watch?v=…" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} />
+        <label className="field">원본 영상 주소 (선택)
+          <input className="input" placeholder="올린 영상 주소가 있으면 인기 구간을 반영해요" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} />
         </label>
-        <label className="field">주제 / 채널 성격 (AI에게 전달)
+        <label className="field">주제 / 채널 성격
           <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} />
         </label>
         <label className="field">뽑을 후보 수
@@ -202,24 +204,20 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
       <label className="flex items-start gap-2 text-sm">
         <input className="mt-1" type="checkbox" checked={speech} onChange={(e) => setSpeech(e.target.checked)} />
         <span>
-          <b>음성 인식 사용</b> (추천: 말이 있는 영상이면 구간을 더 잘 고르고 대사 자막이 자동으로 붙습니다 · 이 컴퓨터에서 처리 · 영상이 길면 몇 분~수십 분 걸림, 앞
-          30분까지만 인식)
-          <span className="block text-xs text-muted">
-            처음 한 번은 모델(약 240MB)을 내려받습니다. 장면 이미지와 인식된 대사 텍스트가 Anthropic API로 전송되고 영상 파일과 소리는 밖으로 나가지 않습니다.
-          </span>
+          <b>음성 인식 사용</b> (추천)
+          <span className="block text-xs text-muted">말이 있는 영상이면 구간을 더 잘 고르고 대사 자막이 붙어요. 시간이 더 걸려요.</span>
         </span>
       </label>
 
       <label className="flex items-start gap-2 text-sm">
         <input className="mt-1" type="checkbox" checked={longform} onChange={(e) => setLongform(e.target.checked)} />
         <span>
-          <b>롱폼 요약 구성도 만들기</b> (쇼츠와 별개로, 같은 영상을 챕터가 있는 가로 롱폼 한 편으로 줄이는 계획 · AI를 한 번 더 호출 · 원본의 절반 안팎, 1~15분)
+          <b>롱폼 요약도 만들기</b>
+          <span className="block text-xs text-muted">같은 영상을 챕터가 있는 가로 영상(1~15분)으로 줄이는 계획이에요. AI를 한 번 더 써요.</span>
         </span>
       </label>
 
-      <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">
-        {sourceReady(source) ? `영상: ${sourceName(source)}` : "위 “1. 편집할 영상”에서 영상을 고르고 권한 확인을 해 주세요."}
-      </p>
+      {!sourceReady(source) && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상을 먼저 올려 주세요.</p>}
 
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
@@ -229,14 +227,14 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
 
       {hintNote && found && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">{hintNote}</p>}
 
-      {found && found.length === 0 && <p className="text-sm text-muted">쇼츠로 쓸 만한 구간을 찾지 못했습니다. 영상이 너무 짧거나 변화가 거의 없을 수 있습니다.</p>}
+      {found && found.length === 0 && <p className="text-sm text-muted">쓸 만한 구간을 못 찾았어요. 영상이 너무 짧거나 변화가 적을 수 있어요.</p>}
 
       {found && found.length > 0 && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted">
-              점수 순 · 후보 {found.length}개 · 훅 자막은 고쳐도 됩니다
-              {range ? ` · 내 채널에서 잘된 쇼츠는 ${range.min}~${range.max}초` : " · 내 채널 성과 자료가 부족하거나 불러오지 못해 길이는 참고하지 않았습니다"}
+              점수 순 · 후보 {found.length}개
+              {range ? ` · 내 채널에서 잘된 쇼츠는 ${range.min}~${range.max}초` : ""}
             </p>
             <button className="btn" onClick={makeAll} disabled={busyMaking || finding}>추천 쇼츠 모두 만들기</button>
           </div>
@@ -273,8 +271,8 @@ export default function Highlights({ topic: initialTopic, source }: { topic: str
                     <input className="input" value={hooks[i] ?? ""} onChange={(e) => setHooks(hooks.map((x, j) => (j === i ? e.target.value : x)))} />
                   </label>
                   <details className="rounded-md border border-line px-3 py-2">
-                    <summary className="cursor-pointer text-sm">
-                      자막 {editedCaptions(caps[i] ?? []).length}줄 {h.captions.length ? "(음성 인식 결과 · 틀린 글자를 고치세요)" : "(없음 · 직접 추가할 수 있습니다)"}
+                    <summary className="text-sm">
+                      자막 {editedCaptions(caps[i] ?? []).length}줄 {h.captions.length ? "(음성 인식 · 틀린 글자를 고치세요)" : "(없음 · 직접 추가 가능)"}
                     </summary>
                     <CaptionEditor
                       caps={caps[i] ?? []}

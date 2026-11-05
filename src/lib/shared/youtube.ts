@@ -249,7 +249,7 @@ export async function loadMyChannel(max = 200): Promise<MyChannelData> {
   // Thumbnail impressions / CTR are rejected by the Analytics API for per-video reports
   // ("query is not supported"), so they stay undefined and the UI says to check Studio.
   if (core) {
-    notes.push("썸네일 노출·CTR은 YouTube Analytics API가 영상별 조회를 지원하지 않아 제외했습니다. (Studio에서 직접 확인) 쇼츠는 썸네일 클릭 없이 피드로 노출되어 CTR이 큰 의미가 없습니다.");
+    notes.push("CTR(썸네일 클릭률)은 Analytics API가 영상별로 주지 않아 뺐어요. Studio에서 확인하세요. 쇼츠는 CTR이 큰 의미가 없어요.");
   }
 
   for (const v of videos) {

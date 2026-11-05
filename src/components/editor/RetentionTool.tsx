@@ -29,7 +29,11 @@ function sample(): string {
 
 const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
 /** "5:20 ~ 5:40", or "영상의 48~50%" without the length. */
-const range = (s: Span) => (s.fromSec !== null && s.toSec !== null ? `${clock(s.fromSec)} ~ ${clock(s.toSec)}` : `영상의 ${Math.round(s.fromPct)}~${Math.round(s.toPct)}%`);
+const range = (s: Span) => {
+  if (s.fromSec === null || s.toSec === null) return `영상의 ${Math.round(s.fromPct)}~${Math.round(s.toPct)}%`;
+  // a stretch shorter than the clock's second is one moment, not "0:13 ~ 0:13"
+  return clock(s.fromSec) === clock(s.toSec) ? `${clock(s.fromSec)} 부근` : `${clock(s.fromSec)} ~ ${clock(s.toSec)}`;
+};
 
 const VERDICT: Record<Reading["hookVerdict"], { label: string; cls: string }> = {
   healthy: { label: "무난함", cls: "chip-local" },
@@ -112,18 +116,19 @@ export default function RetentionTool({ source }: { source: SourceState }) {
       <ToolIntro
         icon="chart"
         title="시청 지속 분석"
-        summary="YouTube Studio의 시청 지속률 데이터를 붙이면, 시청자가 어디서 떠나는지 찾아서 가장 먼저 손볼 곳 하나를 알려 줍니다."
-        steps={["Studio에서 시청 지속률 데이터를 내려받아 붙여 넣습니다", "영상 길이(선택)와 자막(선택)을 넣고 ‘분석하기’를 누릅니다", "가장 큰 문제 하나와 이탈 구간을 확인합니다"]}
+        summary="시청자가 어디서 떠나는지 찾아, 가장 먼저 고칠 곳 하나를 알려 줘요."
+        steps={["Studio에서 시청 지속률 CSV를 받아 붙여 넣습니다", "‘분석하기’를 누릅니다 (길이·자막은 선택)", "가장 큰 문제와 이탈 구간을 확인합니다"]}
         uses="local"
-      >
-        내려받는 곳: YouTube Studio → 분석 → 영상 하나 선택 → 참여도 → 시청 지속률 그래프 → 다운로드 아이콘 → “시청 지속률” 파일(CSV). 위치와 지속률 두 열이 있는 파일이면 되고, 파일을
-        열어 내용을 그대로 붙여 넣으면 됩니다. 계산은 모두 이 화면 안에서 하며 데이터는 어디로도 전송되지 않고 AI도 쓰지 않습니다. 이 분석은 곡선 모양만 보는 것이라 “왜” 떠났는지는 알려 주지
-        못합니다. 영상 길이와 자막(SRT)을 넣으면 그 순간에 무슨 말을 하고 있었는지 함께 보여 줍니다. 도입 이탈 기준(25%p, 40%p)과 급락·완만한 하락 기준은 경험칙이므로, 같은 채널의 다른
-        영상과 비교해서 보세요. 아이디어(도입·급락·완만한 하락으로 나눠 보기)는 MIT 라이선스의 youtube-agent-skill을 참고했고 코드는 새로 작성했습니다.
-      </ToolIntro>
+        notes={[
+          "CSV는 Studio → 분석 → 영상 선택 → 참여도 → 시청 지속률 그래프 → 다운로드에서 받아요.",
+          "계산은 이 화면 안에서만 해요. 전송도 AI도 없어요.",
+          "곡선 모양만 보므로 ‘왜’ 떠났는지는 몰라요.",
+          "기준(도입 이탈 25·40%p 등)은 경험칙이에요. 같은 채널의 다른 영상과 비교하세요.",
+        ]}
+      />
 
       <div className="flex flex-col gap-3">
-        <label className="field">시청 지속률 데이터 (CSV를 열어 붙여 넣기)
+        <label className="field">시청 지속률 데이터 (CSV 내용)
           <textarea
             className="input min-h-40 font-mono text-xs"
             placeholder={"영상 위치(%),시청 지속률(%)\n0,100\n1,97.4\n2,93.1\n…"}
@@ -140,13 +145,13 @@ export default function RetentionTool({ source }: { source: SourceState }) {
               <option value="seconds">초</option>
             </select>
           </label>
-          <label className="field">영상 길이 (선택, 예: 600 또는 10:00)
-            <input className="input" inputMode="text" placeholder="비우면 퍼센트로만 말해요" value={length} onChange={(e) => setLength(e.target.value)} />
+          <label className="field">영상 길이 (선택)
+            <input className="input" inputMode="text" placeholder="예: 10:00 · 비우면 %로만 보여요" value={length} onChange={(e) => setLength(e.target.value)} />
           </label>
         </div>
         <details className="text-sm">
-          <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">자막(SRT)도 넣기 (선택): 급락한 순간에 무슨 말을 했는지 보여 줍니다</summary>
-          <label className="field mt-2">SRT 자막 내용 (영상 길이도 함께 넣어야 합니다)
+          <summary className="w-fit py-1 text-sm font-medium text-muted hover:text-foreground">자막(SRT) 넣기 (선택)</summary>
+          <label className="field mt-2">SRT 자막 내용 (영상 길이도 필요해요)
             <textarea className="input min-h-28 font-mono text-xs" value={srt} onChange={(e) => setSrt(e.target.value)} spellCheck={false} />
           </label>
         </details>
@@ -168,7 +173,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
 
       {shown && r && (
         <div className="flex flex-col gap-6 border-t border-line pt-6">
-          {shown.isSample && <p className="callout text-xs text-muted">지금 보는 것은 예시용으로 만든 가짜 데이터입니다. 내 영상의 데이터를 붙여 넣고 다시 분석해 보세요.</p>}
+          {shown.isSample && <p className="callout text-xs text-muted">예시용 가짜 데이터예요. 내 데이터를 붙여 넣고 다시 분석해 보세요.</p>}
 
           <div className="rounded-[10px] border-2 border-foreground p-5">
             <p className="timecode !text-foreground">가장 먼저 볼 것</p>
@@ -200,7 +205,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
           <div>
             <h3 className="font-bold">급락한 곳 {r.cliffs.length ? `${r.cliffs.length}곳` : ""}</h3>
             {r.cliffs.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">뚜렷한 급락이 없습니다. 떠나는 이유가 한 순간이 아니라 전체 템포에 있을 가능성이 큽니다.</p>
+              <p className="mt-2 text-sm text-muted">뚜렷한 급락이 없어요. 이유가 한 장면이 아니라 전체 템포에 있을 수 있어요.</p>
             ) : (
               <ol className="mt-2 divide-y divide-line border-y border-line">
                 {r.cliffs.map((c, i) => {
@@ -210,7 +215,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
                       <span className="font-mono text-xs font-bold">#{i + 1}</span>
                       <span className="font-semibold">{range(c)}</span>
                       <span className="tabular-nums text-bad">−{c.points}%p</span>
-                      {shown.cues.length > 0 && <span className="w-full text-muted sm:w-auto sm:flex-1">{said ? `“${said}”` : c.fromSec === null ? "영상 길이를 넣으면 이 순간의 말을 보여 줍니다" : "이 근처에는 자막이 없습니다"}</span>}
+                      {shown.cues.length > 0 && <span className="w-full text-muted sm:w-auto sm:flex-1">{said ? `“${said}”` : c.fromSec === null ? "영상 길이를 넣으면 이 순간의 말을 보여 줘요" : "이 근처에는 자막이 없어요"}</span>}
                       {videoReady && previewRange(c, r.durationSec) && (
                         <span className="ml-auto">
                           <RangePreview file={source.file} sourcePath={source.sourcePath.trim()} start={previewRange(c, r.durationSec)!.start} end={previewRange(c, r.durationSec)!.end} basis={source.basis} label="▶ 앞뒤 3초 보기" />
@@ -226,7 +231,7 @@ export default function RetentionTool({ source }: { source: SourceState }) {
           {r.rewatches.length > 0 && (
             <div>
               <h3 className="font-bold">다시 돌려 본 곳 {r.rewatches.length}곳</h3>
-              <p className="mt-1 text-sm text-muted">지속률이 오른 구간입니다. 시청자가 되돌려 다시 본 순간이라 쇼츠로 잘라 내기 좋은 후보입니다.</p>
+              <p className="mt-1 text-sm text-muted">시청자가 되돌려 다시 본 순간이에요. 쇼츠 후보로 좋아요.</p>
               <ol className="mt-2 divide-y divide-line border-y border-line">
                 {r.rewatches.map((c, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-4 py-3 text-sm">
@@ -264,15 +269,15 @@ export default function RetentionTool({ source }: { source: SourceState }) {
           )}
 
           {!DEMO && !videoReady && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
-            <p className="callout text-sm text-muted">영상 파일을 올리면(앞 단계) 이 구간들을 바로 재생해 보고, 급락 구간을 뺀 영상이나 다시 돌려 본 구간의 쇼츠를 만들 수 있어요. 영상 길이도 알아야 하니 위에서 함께 넣어 주세요.</p>
+            <p className="callout text-sm text-muted">영상을 올리고 길이를 넣으면 이 구간을 바로 재생하고, 편집본·쇼츠도 만들 수 있어요.</p>
           )}
           {!DEMO && videoReady && r.durationSec === null && (r.cliffs.length > 0 || r.rewatches.length > 0) && (
-            <p className="callout text-sm text-muted">영상 길이(예: 600 또는 10:00)를 넣고 다시 분석하면 구간을 재생하고 영상을 만들 수 있어요. 파일을 직접 올리면 길이가 자동으로 들어갑니다.</p>
+            <p className="callout text-sm text-muted">영상 길이(예: 10:00)를 넣고 다시 분석하면 영상을 만들 수 있어요.</p>
           )}
           {videoReady && r.durationSec !== null && r.cliffs.length > 0 && (
             <div>
               <h3 className="font-bold">급락한 곳을 빼고 다시 만들기</h3>
-              <p className="mt-1 text-sm text-muted">시청자가 한꺼번에 빠진 곳을 잘라 낸 시험용 편집본입니다. 급락의 원인이 그 장면 자체가 아닐 수도 있으니, 앞뒤를 재생해 본 뒤 빼고 싶은 곳만 고르세요.</p>
+              <p className="mt-1 text-sm text-muted">급락한 곳을 잘라 낸 시험용 편집본이에요. 재생해 보고 뺄 곳만 고르세요.</p>
               <ul className="mt-2 flex flex-col gap-1">
                 {r.cliffs.map((c, i) => (
                   <li key={i}>

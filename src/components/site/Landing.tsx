@@ -4,6 +4,7 @@ import { DEMO } from "@/lib/shared/demo";
 import Brand, { BRAND } from "./Brand";
 import Icon, { type IconName } from "./Icon";
 import SiteHeader from "./SiteHeader";
+import TourVideo from "./TourVideo";
 
 const FEATURES: { icon: IconName; title: string; text: string; uses: "ai" | "local" }[] = [
   { icon: "clapper", title: "쇼츠 구간 뽑기", text: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 이유까지 붙여 골라 줍니다.", uses: "ai" },
@@ -44,13 +45,13 @@ function RunLocally() {
       <p className="mt-4 max-w-2xl text-lg text-muted">
         이 공개 데모에서는 시청 지속 분석만 쓸 수 있습니다. 컷·자막·세로 변환 같은 영상 처리는 영상이 서버에 올라가지 않도록 내 컴퓨터에서 돌아가게 만들었고, AI 기능은 내 API 키로 호출합니다.
       </p>
-      <pre className="mt-8 overflow-x-auto rounded-[10px] border border-line bg-card p-5 font-mono text-sm leading-7" aria-label="실행 명령">
+      <pre tabIndex={0} className="mt-8 overflow-x-auto rounded-[10px] border border-line bg-card p-5 font-mono text-sm leading-7" aria-label="실행 명령">
         {RUN_STEPS.join("\n")}
       </pre>
       <ul className="mt-6 grid gap-6 text-sm text-muted md:grid-cols-3">
         <li><b className="text-foreground">Docker가 필요합니다.</b> 처음 빌드는 몇 분 걸리고, 이미지에 영상 처리 도구(ffmpeg)와 한글 글꼴이 들어 있습니다.</li>
         <li><b className="text-foreground">실행하면 http://localhost:3000</b> 에서 열립니다. 만든 결과와 설정은 <code>cliplab-data</code> 저장 공간에 남습니다.</li>
-        <li><b className="text-foreground">AI 기능을 쓰려면</b> 실행할 때 <code>-e ANTHROPIC_API_KEY=내키</code>를 덧붙이세요. 음성 인식·사람 찾기 모델은 처음 쓸 때 한 번 내려받습니다.</li>
+        <li><b className="text-foreground">AI 기능을 쓰려면</b> 실행할 때 <code>-e ANTHROPIC_API_KEY=YOUR_KEY</code>를 덧붙이고 YOUR_KEY 자리에 내 키를 넣으세요. 음성 인식·사람 찾기 모델은 처음 쓸 때 한 번 내려받습니다.</li>
       </ul>
     </section>
   );
@@ -113,7 +114,7 @@ export default function Landing() {
               )}
             </div>
 
-            <Shot src="/shots/cut.webp" w={1712} h={1160} alt="무음·군말 자르기: 자를 곳 목록과 원본·결과 길이" caption="실제 화면 · 무음·군말 자르기 결과 (테스트 영상)" priority />
+            <TourVideo src="/demo/tour.mp4" poster="/demo/tour-poster.jpg" label="ClipLab 사용 장면 녹화: 작업을 고르고 영상을 올려 무음·군말을 자르고, AI가 쇼츠 구간을 고르는 과정" caption="실제 사용 장면 · 소리 없음, 오래 걸리는 분석은 빨리 감았어요" />
           </div>
         </section>
 
@@ -127,7 +128,7 @@ export default function Landing() {
           <div className="mt-12 grid gap-8 md:grid-cols-2">
             <Shot src="/shots/task.webp" w={1904} h={1882} alt="1단계: 하고 싶은 작업 고르기" caption="1단계 · 하고 싶은 작업을 고릅니다" />
             <Shot src="/shots/style.webp" w={1904} h={1394} alt="3단계: 자막 스타일 고르기" caption="3단계 · 자막 스타일을 고릅니다 (선택)" />
-            <Shot src="/shots/beats.webp" w={1802} h={2200} alt="박자에 맞춰 효과 넣기: 찾은 박자와 박 위치, 만드는 방식과 효과 선택" caption="박자에 맞춰 효과 넣기 · 음악의 박자를 찾은 결과 (합성한 북소리 영상)" />
+            <Shot src="/shots/beats.webp" w={1802} h={2200} alt="박자에 맞춰 효과 넣기: 찾은 박자와 박 위치, 만드는 방식과 효과 선택" caption="박자에 맞춰 효과 넣기 · 찾은 박자와 효과 선택" />
           </div>
         </section>
 

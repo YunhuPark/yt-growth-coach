@@ -19,7 +19,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const parsed = Body.safeParse(await req.json());
+    const body = await req.json();
+    if (Array.isArray(body?.competitors) && body.competitors.length > 8) return Response.json({ error: "경쟁 채널은 최대 8개까지예요. 하나를 지우고 추가해 주세요." }, { status: 400 });
+    if (Array.isArray(body?.keywords) && body.keywords.length > 5) return Response.json({ error: "관심 키워드는 최대 5개까지예요." }, { status: 400 });
+    const parsed = Body.safeParse(body);
     if (!parsed.success) return Response.json({ error: "설정 형식이 올바르지 않습니다." }, { status: 400 });
 
     const current = await loadSettings();

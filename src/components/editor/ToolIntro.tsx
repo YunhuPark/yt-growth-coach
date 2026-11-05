@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
 import Icon, { type IconName } from "../site/Icon";
 
 /**
- * The top of every tool: what it does in a line, the few steps to use it, and whether it uses the AI service. Long explanations
- * and what is sent where go under "자세한 설명", so the page is readable at a glance but nothing is hidden for good.
+ * The top of every tool: what it does in a line, the three steps to use it, and whether it uses the AI service. Anything more goes
+ * under "알아 두기" as a few short points, never as a paragraph.
  */
 export default function ToolIntro({
   title,
@@ -11,7 +10,7 @@ export default function ToolIntro({
   steps,
   uses,
   icon,
-  children,
+  notes,
 }: {
   title: string;
   summary: string;
@@ -19,10 +18,11 @@ export default function ToolIntro({
   /** "ai": sends pictures or text to the AI service (costs money); "local": everything stays on this computer */
   uses: "ai" | "local";
   icon?: IconName;
-  children?: ReactNode;
+  /** short points, one idea each */
+  notes?: string[];
 }) {
   return (
-    <header className="flex flex-col gap-4">
+    <header className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         {icon && <Icon name={icon} size={24} />}
         <h2 className="text-xl font-bold">{title}</h2>
@@ -41,10 +41,17 @@ export default function ToolIntro({
           </li>
         ))}
       </ol>
-      {children && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-xs font-medium text-muted hover:text-foreground">자세한 설명 · 어떤 정보가 어디로 가는지</summary>
-          <div className="mt-2 text-xs leading-relaxed text-muted">{children}</div>
+      {notes && notes.length > 0 && (
+        <details>
+          <summary className="w-fit py-1 text-sm font-medium text-muted hover:text-foreground">알아 두기</summary>
+          <ul className="mt-2 flex flex-col gap-1.5 pl-1 text-sm text-muted">
+            {notes.map((n) => (
+              <li key={n} className="flex gap-2">
+                <span aria-hidden className="select-none">·</span>
+                <span>{n}</span>
+              </li>
+            ))}
+          </ul>
         </details>
       )}
     </header>

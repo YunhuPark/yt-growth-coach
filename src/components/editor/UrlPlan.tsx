@@ -78,22 +78,23 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
     <section className="card flex flex-col gap-4">
       <ToolIntro
         icon="link"
-        title="영상 주소로 분석"
-        summary="유튜브 주소만 붙이면 영상 요약과 내 채널에 쓸 주제·제목·쇼츠 구간·롱폼 구성안을 만들어 줍니다. 영상 파일은 필요 없습니다."
-        steps={["유튜브 영상 주소를 붙입니다", "분석 버튼을 누릅니다", "제안된 주제·제목·구간을 확인하고 활용합니다"]}
+        title="유튜브 주소로 분석"
+        summary="주소만 붙이면 영상 요약과 내 채널에 쓸 아이디어를 만들어 줘요. 영상 파일은 필요 없어요."
+        steps={["유튜브 영상 주소를 붙입니다", "‘영상 분석하기’를 누릅니다", "제안된 주제·제목·구간을 확인합니다"]}
         uses="ai"
-      >
-        유튜브 영상 주소를 붙이면 AI가 영상이 무엇에 관한 것인지 정리하고, 내 채널에서 쓸 <b>주제·제목</b>, 쇼츠로 잘라 올리기 좋은 <b>구간</b>(편집 지시서 포함),
-          <b>롱폼 구성안</b>(챕터 포함)을 만들어 줍니다. 영상을 내려받거나 복사하지 않습니다. <b>AI는 영상을 직접 보거나 듣지 못하고</b>, 공개된 제목·설명·챕터·댓글과
-          YouTube가 제공하는 미리보기 이미지 4장(대표 이미지와 영상 중간 장면 3장)만 근거로 합니다. 그래서 파일 분석(D)보다 정확도가 낮고, 시간을 짚은 댓글이나 챕터가
-          없으면 쇼츠 구간과 롱폼은 만들지 않습니다. 원본을 쓸 권리는 직접 확인하세요.
-      </ToolIntro>
+        notes={[
+          "AI는 영상을 보거나 듣지 못해요. 제목·설명·챕터·댓글과 미리보기 이미지 4장만 근거로 써요.",
+          "그래서 파일을 올려 하는 분석보다 정확도가 낮아요.",
+          "시간을 짚은 댓글이나 챕터가 없으면 쇼츠 구간과 롱폼은 만들지 않아요.",
+          "영상은 내려받지 않아요. 원본을 쓸 권리는 직접 확인하세요.",
+        ]}
+      />
 
       <div className="grid gap-3 sm:grid-cols-[1fr_16rem_8rem]">
         <label className="field">영상 주소
           <input className="input" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} />
         </label>
-        <label className="field">주제 (AI에게 전달)
+        <label className="field">주제
           <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} />
         </label>
         <label className="field">후보 수
@@ -106,7 +107,7 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
       {error && <p className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
       <button className="btn-primary w-fit" onClick={run} disabled={busy || !url.trim()}>
-        {busy ? "댓글·설명·이미지를 읽고 분석하는 중… (30초~1분)" : plan ? "다시 분석하기" : "영상 분석하기"}
+        {busy ? "분석하는 중… (30초~1분)" : plan ? "다시 분석하기" : "영상 분석하기"}
       </button>
 
       {plan && (
@@ -161,16 +162,13 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
           {plan.candidates.length > 0 || plan.longform ? (
             <div className="flex flex-col gap-3">
               <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
-                <legend className="px-1 text-xs font-semibold text-muted">파일로 바로 만들기 (원본 영상 파일이 있을 때)</legend>
-                <p className="text-xs text-muted">
-                  이 영상의 파일을 이미 가지고 있다면 위 “1. 편집할 영상”에서 고른 뒤, 아래 후보의 “이 지시서로 쇼츠 만들기”로 그 구간을 바로 잘라 훅·대사 자막을 붙인
-                  쇼츠를 만듭니다(분석 없이 빠름). 파일은 이 앱이 받아 오지 않으며, 직접 구하신 파일만 쓸 수 있습니다. 파일 길이가 원본 영상과 다르면 알려 드립니다.
-                </p>
+                <legend className="px-1 text-xs font-semibold text-muted">파일로 바로 만들기 (원본 파일이 있을 때)</legend>
+                <p className="text-xs text-muted">이 영상의 파일이 있으면 올린 뒤, 아래 후보의 “이 지시서로 쇼츠 만들기”로 바로 만들 수 있어요. 파일은 직접 구한 것만 쓸 수 있어요.</p>
                 <label className="flex items-start gap-2 text-sm">
                   <input className="mt-1" type="checkbox" checked={speech} onChange={(e) => setSpeech(e.target.checked)} />
-                  <span>음성 인식으로 그 구간의 대사 자막 만들기 <span className="text-xs text-muted">(이 컴퓨터에서 처리 · 처음 한 번은 모델 약 240MB를 내려받음)</span></span>
+                  <span>음성 인식으로 대사 자막 만들기 <span className="text-xs text-muted">(처음 한 번 모델 약 240MB)</span></span>
                 </label>
-                {!ready && <p className="text-xs text-muted">영상을 고르고 권한 확인을 하면 아래 후보를 바로 영상으로 만들 수 있습니다.</p>}
+                {!ready && <p className="text-xs text-muted">영상을 올리면 아래 후보를 바로 영상으로 만들 수 있어요.</p>}
               </fieldset>
 
             </div>
@@ -209,7 +207,7 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
                     <p className="text-sm"><span className="text-xs text-muted">훅 자막</span> {c.hook}</p>
                     <p className="text-sm"><span className="text-xs text-muted">제목 후보</span> {c.title}</p>
                     <details className="rounded-md border border-line px-3 py-2">
-                      <summary className="cursor-pointer text-sm">편집 지시서 보기</summary>
+                      <summary className="text-sm">편집 지시서 보기</summary>
                       <pre className="mt-2 whitespace-pre-wrap text-xs">{c.brief}</pre>
                       <button className="mt-2 text-xs text-accent hover:underline" onClick={() => copy(c.brief)}>지시서 복사</button>
                     </details>
@@ -224,20 +222,20 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
             <div className="flex flex-col gap-2">
               <h3 className="font-semibold">롱폼 구성안 (1920×1080 가로)</h3>
               <p className="text-xs text-muted">
-                원본에서 남길 구간과 챕터, 제목, 설명입니다. 파일이 있으면 아래에서 파일 길이를 확인한 뒤 이 구성대로 바로 만들 수 있습니다(영상 길이에 따라 몇 분 걸림).
+                남길 구간·챕터·제목·설명이에요. 파일이 있으면 길이를 확인한 뒤 이 구성대로 만들 수 있어요.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <button className="btn" onClick={checkFile} disabled={!ready || checking}>{checking ? "파일 확인 중…" : "파일 길이 확인"}</button>
                 {fileSec !== null && (
                   <span className="text-xs text-muted">파일 {formatClock(fileSec)} · 원본 영상 {formatClock(plan.video.durationSec)}</span>
                 )}
-                {!ready && <span className="text-xs text-muted">위의 “파일로 바로 만들기”에서 파일과 권한 확인을 먼저 채워 주세요.</span>}
+                {!ready && <span className="text-xs text-muted">영상을 먼저 올려 주세요.</span>}
               </div>
               {fileErr && <p className="text-sm text-bad">{fileErr}</p>}
               {fileSec !== null && lengthMismatch(fileSec, plan.video.durationSec) > MISMATCH_LIMIT && (
                 <label className="flex items-start gap-2 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
                   <input className="mt-1" type="checkbox" checked={okMismatch} onChange={(e) => setOkMismatch(e.target.checked)} />
-                  <span>파일 길이가 원본 영상과 달라 구간 시간이 어긋날 수 있습니다. 그래도 이 시간대로 만듭니다.</span>
+                  <span>파일 길이가 원본과 달라 구간이 어긋날 수 있어요. 그래도 이 시간대로 만듭니다.</span>
                 </label>
               )}
               <PlanPanel
@@ -252,7 +250,7 @@ export default function UrlPlan({ topic: initialTopic, source }: { topic: string
 
           {plan.moments.length > 0 && (
             <details className="text-sm">
-              <summary className="cursor-pointer text-xs text-muted">시청자가 짚은 순간 {plan.moments.length}곳 (참고)</summary>
+              <summary className="w-fit text-sm text-muted">시청자가 짚은 순간 {plan.moments.length}곳 (참고)</summary>
               <ul className="mt-1 space-y-0.5">
                 {plan.moments.map((m) => (
                   <li key={m.sec} className="text-xs">

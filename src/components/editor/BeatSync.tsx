@@ -26,8 +26,8 @@ const clock = (sec: number) => `${Math.floor(sec / 60)}:${(sec % 60).toFixed(1).
 function trust(regularity: number, support: number): { label: string; cls: string; advice: string } {
   const t = beatTrust(regularity, support);
   if (t === "high") return { label: "박자가 뚜렷함", cls: "chip-local", advice: "" };
-  if (t === "medium") return { label: "조금 불확실", cls: "chip", advice: "박자가 고르지 않거나 실제 소리와 맞는 정도가 낮습니다. 먼저 15초만 만들어 확인해 보세요." };
-  return { label: "불확실", cls: "rounded-md bg-bad/15 px-2 py-0.5 text-xs font-semibold text-bad", advice: "박자가 뚜렷하지 않은 소리(말소리가 큰 영상, 박자가 자유로운 음악)라 효과가 어긋날 가능성이 큽니다." };
+  if (t === "medium") return { label: "조금 불확실", cls: "chip", advice: "박이 고르지 않거나 소리와 덜 맞아요. 먼저 15초만 만들어 보세요." };
+  return { label: "불확실", cls: "rounded-md bg-bad/15 px-2 py-0.5 text-xs font-semibold text-bad", advice: "박자가 뚜렷하지 않은 소리(말소리, 자유로운 박자)라 어긋날 수 있어요." };
 }
 
 /**
@@ -171,17 +171,20 @@ export default function BeatSync({ source }: { source: SourceState }) {
       <ToolIntro
         icon="wave"
         title="박자에 맞춰 효과 넣기"
-        summary="영상 속 음악의 박자를 찾아서, 박자마다 번쩍임·확대·효과음을 넣은 영상을 만듭니다."
-        steps={["음악이 잘 들리는 구간(시작과 길이)을 정해 ‘박자 찾기’를 누릅니다", "박자가 맞는지 보고, 어긋나면 2배·절반·위치 조절로 맞춥니다", "그대로 쓸지 박에 맞춰 줄일지 고르고, 15초만 먼저 만들어 확인한 뒤 전체를 만듭니다"]}
+        summary="음악 박자마다 번쩍임·확대·효과음을 넣어요."
+        steps={["시작과 길이를 정해 ‘박자 찾기’를 누릅니다", "박이 맞는지 보고, 어긋나면 조절합니다", "15초만 만들어 확인하고 전체를 만듭니다"]}
         uses="local"
-      >
-        소리를 내 컴퓨터에서 분석하며 영상이나 소리는 어디로도 전송되지 않고 AI도 쓰지 않습니다. 박자 찾기는 MIT 라이선스의 music-tempo 패키지(BeatRoot 알고리즘)를 쓰며 1분에 60~200박 사이의 박자만 찾습니다.
-        음악이 또렷하고 박자가 일정한 영상에서 잘 맞고, 말소리가 큰 영상이나 박자가 자유로운 곡에서는 어긋납니다. 템포를 절반이나 두 배로 잘못 잡는 일이 흔해서 ‘2배·절반’ 단추와 위치 조절을 두었습니다. 합성한 북소리와 박이 뚜렷한 전자음악 2곡으로만 시험했고, 박이 약한 곡이나 사람 목소리가 섞인 영상은 시험하지 못했습니다.
-        효과는 한 번에 최대 400개(번쩍임·어두워짐은 150개, 확대는 100개)까지 넣고, 그대로 만들 때는 최대 3분까지 만듭니다. ‘박에 맞춰 줄이기’는 한 번에 최대 10분 구간에서 4박이나 8박 조각을 고르게 뽑아 이어 붙이는데, 조각이 박에서 시작해 박에서 끝나 이어 붙여도 박자가 그대로 이어집니다. 조각은 구간 전체에서 고르게 뽑거나 소리가 큰 곳 위주로 뽑는데, 큰 소리가 꼭 좋은 장면은 아니고 장면(화면)은 보지 않습니다. 소리가 큰 곳 위주로 뽑으면 한곳에 몰릴 수 있습니다.
-      </ToolIntro>
+        notes={[
+          "분석은 이 컴퓨터에서만 해요. 전송도 AI도 없어요.",
+          "박이 뚜렷한 음악에서 잘 맞아요. 말소리가 큰 영상이나 박자가 자유로운 곡에서는 어긋나요.",
+          "템포를 2배·절반으로 잘못 잡으면 ‘2배·절반’ 단추로 맞추세요.",
+          "시험은 합성 북소리와 전자음악 2곡으로만 했어요.",
+          "효과는 최대 400개, 결과는 최대 3분이에요. ‘박에 맞춰 줄이기’는 10분까지 분석해요.",
+        ]}
+      />
 
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <label className="field">시작 (예: 30 또는 0:30)
+        <label className="field">시작 (예: 0:30)
           <input className="input" value={startText} onChange={(e) => setStartText(e.target.value)} inputMode="text" />
         </label>
         <label className="field">길이 (4초~10분)
@@ -189,7 +192,7 @@ export default function BeatSync({ source }: { source: SourceState }) {
         </label>
         <button className="btn-primary self-end" onClick={analyze} disabled={!ready}>{analyzing ? `${stage}…` : "박자 찾기"}</button>
       </div>
-      {!sourceReady(source) && <p className="callout text-sm text-muted">앞 단계에서 영상을 올리고 권리 확인을 마치면 박자를 찾을 수 있어요.</p>}
+      {!sourceReady(source) && <p className="callout text-sm text-muted">영상을 먼저 올려 주세요.</p>}
       {error && <p className="rounded-lg border border-bad/40 bg-bad/10 px-4 py-3 text-sm text-bad" role="alert">{error}</p>}
 
       {found && range && t && (
@@ -213,9 +216,9 @@ export default function BeatSync({ source }: { source: SourceState }) {
           <BeatStrip times={times} length={outSec} />
 
           <fieldset className="flex flex-col gap-3">
-            <legend className="font-bold">만드는 방식</legend>
+            <legend className="font-bold">1. 만드는 방식</legend>
             <div className="flex flex-wrap gap-2">
-              {([["whole", "구간 그대로"], ["montage", "박에 맞춰 줄이기 (조각 이어 붙이기)"]] as const).map(([id, label]) => (
+              {([["whole", "구간 그대로"], ["montage", "박에 맞춰 줄이기"]] as const).map(([id, label]) => (
                 <label key={id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${mode === id ? "border-foreground bg-foreground/[0.04]" : "border-line"}`}>
                   <input type="radio" name="beat-mode" checked={mode === id} onChange={() => setMode(id)} />
                   {label}
@@ -241,13 +244,13 @@ export default function BeatSync({ source }: { source: SourceState }) {
                     <option value="loud">소리가 큰 곳 위주</option>
                   </select>
                 </label>
-                <p className="text-sm text-muted">{pieces.length ? `${pieces.length}개 조각을 이어 붙입니다.` : "조각을 만들 박이 모자랍니다. 더 긴 구간을 분석해 보세요."}</p>
+                <p className="text-sm text-muted">{pieces.length ? `${pieces.length}개 조각을 이어 붙여요.` : "박이 모자라요. 더 긴 구간을 분석해 보세요."}</p>
               </div>
             )}
           </fieldset>
 
           <fieldset className="flex flex-col gap-3">
-            <legend className="font-bold">박자 맞추기</legend>
+            <legend className="font-bold">2. 박자 맞추기</legend>
             <div className="flex flex-wrap items-end gap-3">
               <div className="field">템포
                 <div className="flex gap-2">
@@ -279,13 +282,13 @@ export default function BeatSync({ source }: { source: SourceState }) {
             {!montage && (
               <label className="text-sm">
                 <input type="checkbox" className="mr-2" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
-                시작과 끝을 박자에 맞춰 자르기 <span className="text-muted">({clock(range.start)} ~ {clock(range.end)}, {Math.max(0, range.beats)}박)</span>
+                시작·끝을 박에 맞춰 자르기 <span className="text-muted">({clock(range.start)} ~ {clock(range.end)}, {Math.max(0, range.beats)}박)</span>
               </label>
             )}
           </fieldset>
 
           <fieldset className="grid gap-3 sm:grid-cols-3">
-            <legend className="mb-2 font-bold">넣을 효과</legend>
+            <legend className="mb-2 font-bold">3. 넣을 효과</legend>
             <label className="field">화면
               <select className="input" value={transition} onChange={(e) => setTransition(e.target.value as TransitionKind)}>
                 {TRANSITIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -336,7 +339,7 @@ function BeatStrip({ times, length }: { times: number[]; length: number }) {
           <line key={i} x1={X(s)} x2={X(s)} y1={6} y2={H - 6} stroke="currentColor" strokeWidth={times.length > 150 ? 1 : 2} opacity={0.75} />
         ))}
       </svg>
-      <figcaption className="mt-1.5 text-xs text-muted">세로 선 하나가 효과 하나입니다. 음악의 박과 겹치지 않아 보이면 ‘어느 박부터’나 위치 조절을 써 보세요.</figcaption>
+      <figcaption className="mt-1.5 text-xs text-muted">세로 선 하나가 효과 하나예요. 박과 어긋나 보이면 ‘어느 박부터’나 위치 조절을 쓰세요.</figcaption>
     </figure>
   );
 }

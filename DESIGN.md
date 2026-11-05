@@ -21,7 +21,7 @@ unclear-licence libraries that were considered.
 | Hairline | `#ddd9cf` | `#2a2926` |
 | Muted text | `#6a665d` | `#9a968b` |
 | Marker yellow (the one decorative colour) | `#f2c200` | same |
-| Green: "stays on this computer", success | `#1f6f43` | `#5bc98a` |
+| Green: "stays on this computer", success | `#1a6439` | `#5bc98a` |
 | Red: errors only | `#b3261e` | `#f2766e` |
 
 - Actions are ink: the primary button is black on paper (paper on black in dark mode). Selection is a 1 px ink border, not a tint.
@@ -49,8 +49,13 @@ unclear-licence libraries that were considered.
 
 - Show the product itself (`ProductFragment` in `Landing.tsx`: real parts, made-up numbers, and it says so) instead of drawing a phone or
   an illustration.
-- Every tool starts with `ToolIntro`: a one-line summary, three numbered steps, the AI/local badge, and the long explanation folded under
-  "자세한 설명".
+- Every tool starts with `ToolIntro`: a one-line summary, three numbered steps, the AI/local badge, and anything more as `notes`: at most
+  four short points (one idea each, under about 45 characters) folded under "알아 두기". No paragraphs there.
+- Writing: short sentences in the polite "-요" form, one idea per line. A screen heading has no second sentence under it unless it adds
+  something. Say a thing once: the video name is in the bar at the top of the last step, so a tool does not repeat it. Put what a person
+  needs next to the control, not in a block of explanation.
+- Every screen has a way back. A step a task does not have (the public demo has no video step) is never offered as a destination.
+- Fold-out lists (`<details>`) get their arrow from `globals.css`, not from the browser; a summary styled as something else says `plain`.
 - Icons are the stroke icons in `Icon.tsx`.
 
 ## Don't

@@ -103,7 +103,17 @@ export async function gget<T>(
   const headers: Record<string, string> = {};
   // Some endpoints (comments) reject the read-only OAuth scope; a plain API key works and avoids asking for broader access.
   const useKey = opts.preferApiKey && !!process.env.YOUTUBE_API_KEY;
-  const token = useKey ? null : await getAccessToken();
+  let token: string | null = null;
+  if (!useKey) {
+    try {
+      token = await getAccessToken();
+    } catch (e) {
+      // A stored sign-in that Google no longer accepts (expired or revoked) must not break a read that an API key can do.
+      if (!(opts.allowApiKey && process.env.YOUTUBE_API_KEY)) {
+        throw new GoogleApiError(401, `Google 로그인이 만료되었거나 취소되었습니다. 다시 로그인해 주세요. (${e instanceof Error ? e.message.slice(0, 160) : "토큰 갱신 실패"})`);
+      }
+    }
+  }
   if (useKey) u.searchParams.set("key", process.env.YOUTUBE_API_KEY!);
   else if (token) headers.Authorization = `Bearer ${token}`;
   else if (opts.allowApiKey && process.env.YOUTUBE_API_KEY) {

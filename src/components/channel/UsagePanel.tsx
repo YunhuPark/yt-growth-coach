@@ -67,8 +67,7 @@ export default function UsagePanel() {
       <div>
         <h2 className="font-semibold">AI·처리 원가</h2>
         <p className="text-xs text-muted">
-          작업 종류별로 AI 토큰, 처리 시간을 실제로 재서 평균을 보여 줍니다. 가격을 정하는 근거로 쓰세요. 모델 단가는 가정하지 않고 <b>직접 입력한 값</b>으로만 계산합니다(사용 중인
-          모델의 현재 단가는 Anthropic 가격 안내에서 확인). 영상 처리(ffmpeg·음성 인식)는 이 컴퓨터에서 하므로 서버로 옮기면 처리 시간만큼 서버 비용이 따로 듭니다.
+          작업 종류별 AI 토큰과 처리 시간을 실제로 재서 평균을 보여 줘요. 가격을 정하는 근거로 쓰세요. 모델 단가는 가정하지 않고 <b>직접 입력한 값</b>으로만 계산해요(현재 단가는 Anthropic 가격 안내에서 확인). 영상 처리는 이 컴퓨터에서 하므로 서버로 옮기면 처리 시간만큼 서버 비용이 따로 들어요.
         </p>
       </div>
 
@@ -100,7 +99,7 @@ export default function UsagePanel() {
             </label>
             <p className="pb-2 text-xs text-muted">입력하면 아래 표에 AI 비용을 뺀 남는 금액(마진)이 표시됩니다. 서버 처리비·결제 수수료·세금은 포함되지 않습니다.</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="작업별 원가 표">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>

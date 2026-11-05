@@ -15,7 +15,7 @@
   --accent-strong: #14130f; /* behind text of --on-accent */
   --on-accent: #f6f4ef;
   --marker: #f2c200;
-  --good: #1f6f43;
+  --good: #1a6439;
   --bad: #b3261e;
 }
 
@@ -116,6 +116,38 @@ label:has(> input[type="radio"]) {
     color: var(--marker);
     padding: 0;
     margin: 0;
+  }
+}
+
+/* The arrow of a fold-out list, drawn here so it lines up with the text (the browser's own triangle has its own size and height).
+   A summary that is styled as something else, such as the status chip, says `plain`. */
+summary:not(.plain) {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  list-style: none;
+  cursor: pointer;
+}
+summary:not(.plain)::-webkit-details-marker {
+  display: none;
+}
+summary:not(.plain)::before {
+  content: "";
+  flex: none;
+  width: 0.45em;
+  height: 0.45em;
+  margin-left: 0.1em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+details[open] > summary:not(.plain)::before {
+  transform: rotate(45deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  summary:not(.plain)::before {
+    transition: none;
   }
 }
 

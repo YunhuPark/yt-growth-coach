@@ -15,7 +15,7 @@ import Studio from "./Studio";
 import Tracking from "./Tracking";
 
 type Analysis =
-  | { connected: false; configured: boolean }
+  | { connected: false; configured: boolean; /** a saved sign-in that Google refused (expired or revoked) */ expired?: boolean }
   | {
       connected: true;
       channel: ChannelInfo;
@@ -26,6 +26,9 @@ type Analysis =
     };
 
 type Tab = "diagnosis" | "trends" | "recommend" | "studio" | "tracking";
+
+/** How many videos the quality table shows at first, and how many more each "더 보기" adds. */
+const PAGE = 20;
 
 const CATEGORIES: [string, string][] = [
   ["", "전체"],
@@ -84,7 +87,7 @@ export default function Dashboard() {
   if (!data?.connected) {
     return (
       <Shell>
-        <Connect configured={data ? data.configured : false} error={error ?? (authError && `Google 로그인 실패: ${authError}`)} />
+        <Connect configured={data ? data.configured : false} expired={!!data && !data.connected && !!data.expired} error={error ?? (authError && `Google 로그인 실패: ${authError}`)} />
       </Shell>
     );
   }
@@ -174,7 +177,7 @@ function Alert({ children, tone = "error" }: { children: React.ReactNode; tone?:
   );
 }
 
-function Connect({ configured, error }: { configured: boolean; error?: string | null }) {
+function Connect({ configured, expired = false, error }: { configured: boolean; expired?: boolean; error?: string | null }) {
   return (
     <section className="card flex flex-col gap-4">
       <div className="rounded-md border border-line bg-card p-3">
@@ -183,13 +186,12 @@ function Connect({ configured, error }: { configured: boolean; error?: string | 
         <Link href="/edit" className="btn-primary mt-2 inline-block w-fit">영상 편집 도우미 열기</Link>
       </div>
       <h2 className="text-lg font-semibold">내 유튜브 채널 연결 (채널 분석 · 추천 · 성과 추적용)</h2>
+      {expired && <Alert>Google 로그인이 만료되었거나 취소되었어요. 다시 연결해 주세요.</Alert>}
       {error && <Alert>{error}</Alert>}
       {configured ? (
         <>
-          <p className="text-sm text-muted">
-            읽기 전용 권한(YouTube 데이터 + Analytics)만 요청합니다. 토큰은 이 컴퓨터의 <code>.data/</code> 폴더에만 저장됩니다.
-          </p>
-          <a href="/api/auth/login" className="btn-primary w-fit">Google 계정으로 연결</a>
+          <p className="text-sm text-muted">읽기 전용 권한만 요청해요. 로그인 정보는 이 컴퓨터의 <code>.data/</code> 폴더에만 저장돼요.</p>
+          <a href="/api/auth/login" className="btn-primary w-fit">{expired ? "Google 계정으로 다시 연결" : "Google 계정으로 연결"}</a>
         </>
       ) : (
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
@@ -209,6 +211,9 @@ function Diagnosis({ a }: { a: Extract<Analysis, { connected: true }> }) {
   const [format, setFormat] = useState<"all" | "long" | "short">("all");
   const [open, setOpen] = useState<string | null>(null);
   const [sort, setSort] = useState<"score" | "views" | "cvr">("score");
+  const [shown, setShown] = useState(PAGE);
+  // Thumbnail click-through is not available from the Analytics API for single videos; a column of dashes says nothing.
+  const showCtr = a.videos.some((v) => v.ctr !== undefined);
   const key = (v: Scored) =>
     sort === "views" ? v.views : sort === "cvr" ? (v.cvrPer1k ?? -1) : (v.score ?? -1);
   const rows = a.videos
@@ -258,12 +263,12 @@ function Diagnosis({ a }: { a: Extract<Analysis, { connected: true }> }) {
         <div className="flex items-center justify-between p-4 pb-2">
           <h2 className="font-semibold">영상별 품질 점수 · 회고</h2>
           <div className="flex gap-2">
-            <select className="input w-auto" aria-label="정렬 기준" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+            <select className="input w-auto" aria-label="정렬 기준" value={sort} onChange={(e) => { setSort(e.target.value as typeof sort); setShown(PAGE); }}>
               <option value="score">품질 점수순</option>
               <option value="views">총 조회수순</option>
               <option value="cvr">구독 전환순</option>
             </select>
-            <select className="input w-auto" aria-label="영상 종류" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
+            <select className="input w-auto" aria-label="영상 종류" value={format} onChange={(e) => { setFormat(e.target.value as typeof format); setShown(PAGE); }}>
               <option value="all">전체</option>
               <option value="long">롱폼</option>
               <option value="short">쇼츠</option>
@@ -277,19 +282,25 @@ function Diagnosis({ a }: { a: Extract<Analysis, { connected: true }> }) {
               <th className="px-2">점수</th>
               <th className="px-2 text-right">총 조회 · 일평균</th>
               <th className="px-2 text-right">지속률</th>
-              <th className="px-2 text-right">CTR</th>
+              {showCtr && <th className="px-2 text-right">CTR</th>}
               <th className="px-2 text-right">CTA 반응</th>
               <th className="px-4 text-right">CVR</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((v) => (
-              <VideoRow key={v.id} v={v} open={open === v.id} toggle={() => setOpen(open === v.id ? null : v.id)} />
+            {rows.slice(0, shown).map((v) => (
+              <VideoRow key={v.id} v={v} showCtr={showCtr} open={open === v.id} toggle={() => setOpen(open === v.id ? null : v.id)} />
             ))}
           </tbody>
         </table>
+        {rows.length > shown && (
+          <div className="flex items-center justify-between gap-3 border-t border-line p-4">
+            <span className="text-sm text-muted">{rows.length}개 중 {shown}개 표시</span>
+            <button className="btn" onClick={() => setShown(shown + PAGE)}>더 보기 ({Math.min(PAGE, rows.length - shown)}개)</button>
+          </div>
+        )}
         <p className="p-4 pt-2 text-xs text-muted">
-          점수 = 같은 포맷 안에서의 백분위(조회 속도 20 · 지속률 30 · CTR 15 · 참여 15 · 구독 전환 20, 없는 지표는 제외). 업로드 7일 미만 영상은 점수를 매기지 않습니다. CVR = 1천 조회당 신규 구독자, CTA 반응 = (댓글+공유)/조회수. 쇼츠의 지속률이 100%를 넘는 것은 반복 재생이 포함되기 때문입니다.
+          점수 = 같은 포맷 안 백분위(조회 속도 20 · 지속률 30 · {showCtr ? "CTR 15 · " : ""}참여 15 · 구독 전환 20, 없는 지표는 제외). 업로드 7일 미만은 점수가 없어요. CVR = 1천 조회당 신규 구독자, CTA 반응 = (댓글+공유)/조회수. 쇼츠 지속률이 100%를 넘는 건 반복 재생 때문이에요.
         </p>
       </section>
     </div>
@@ -305,29 +316,32 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function VideoRow({ v, open, toggle }: { v: Scored; open: boolean; toggle: () => void }) {
+function VideoRow({ v, open, toggle, showCtr }: { v: Scored; open: boolean; toggle: () => void; showCtr: boolean }) {
   const tone = v.score === null ? "text-muted" : v.score >= 66 ? "text-good" : v.score <= 33 ? "text-bad" : "";
   return (
     <>
       <tr className="cursor-pointer border-t border-line hover:bg-card" onClick={toggle}>
         <td className="max-w-[340px] px-4 py-2">
-          <div className="truncate font-medium">{v.title}</div>
-          <div className="text-xs text-muted">
-            {v.format === "short" ? "쇼츠" : "롱폼"} · {dur(v.durationSec)} · {v.publishedAt.slice(0, 10)}
-          </div>
+          {/* the row opens on a click anywhere; the title is the button for the keyboard */}
+          <button className="block w-full text-left" aria-expanded={open} onClick={(e) => { e.stopPropagation(); toggle(); }}>
+            <span className="block truncate font-medium">{v.title}</span>
+            <span className="block text-xs text-muted">
+              {v.format === "short" ? "쇼츠" : "롱폼"} · {dur(v.durationSec)} · {v.publishedAt.slice(0, 10)}
+            </span>
+          </button>
         </td>
         <td className={`px-2 font-semibold ${tone}`}>{v.score ?? "집계 중"}</td>
         <td className="px-2 text-right">
           {fmt(v.views)} <span className="text-muted">· {fmt(v.viewsPerDay)}</span>
         </td>
         <td className="px-2 text-right">{v.avgViewPct !== undefined ? `${fmt(v.avgViewPct, 1)}%` : "–"}</td>
-        <td className="px-2 text-right">{v.ctr !== undefined ? `${fmt(v.ctr, 1)}%` : "–"}</td>
+        {showCtr && <td className="px-2 text-right">{v.ctr !== undefined ? `${fmt(v.ctr, 1)}%` : "–"}</td>}
         <td className="px-2 text-right">{v.ctaPct !== undefined ? `${fmt(v.ctaPct, 2)}%` : "–"}</td>
         <td className="px-4 text-right">{fmt(v.cvrPer1k, 2)}</td>
       </tr>
       {open && (
         <tr className="bg-card">
-          <td colSpan={7} className="px-4 py-3 text-sm">
+          <td colSpan={showCtr ? 7 : 6} className="px-4 py-3 text-sm">
             {v.score === null ? (
               <p className="text-muted">업로드 후 7일이 지나면 회고가 생성됩니다.</p>
             ) : v.retro.good.length + v.retro.bad.length === 0 ? (
@@ -502,7 +516,7 @@ function Discover({ settings, save }: { settings: Settings; save: (s: Settings) 
         <div>
           <h2 className="font-semibold">내 채널 파악 · 비슷한 채널 찾기</h2>
           <p className="text-xs text-muted">
-            내 영상의 제목·해시태그로 채널 성격을 파악하고, 후보 채널의 최근 영상 30개를 직접 확인해 같은 소재를 꾸준히 다루는 채널만 남깁니다. (API 할당량 약 700 소모)
+            내 영상 제목·해시태그로 채널 성격을 파악하고, 후보 채널의 최근 영상 30개를 확인해 같은 소재를 꾸준히 다루는 채널만 남겨요. (API 할당량 약 700)
           </p>
         </div>
         <button className="btn-primary" onClick={() => run(!!res)} disabled={busy}>
@@ -713,7 +727,7 @@ function Recommend() {
                 <div key={k.label} className="rounded-md border border-line p-3">
                   <dt className="text-xs text-muted">{k.label}</dt>
                   <dd className="mt-0.5 text-lg font-semibold">{k.value}</dd>
-                  <p className="text-xs text-muted">{k.note}</p>
+                  <dd className="text-xs text-muted">{k.note}</dd>
                 </div>
               ))}
             </dl>
@@ -898,15 +912,14 @@ function PackagePanel({
         </button>
       ) : (
         <details className="text-sm" open>
-          <summary className="flex cursor-pointer items-center justify-between gap-2 font-medium">
-            <span>제작 패키지</span>
-            <span className="flex gap-1.5" onClick={(e) => e.preventDefault()}>
-              <CopyButton text={packToMarkdown(idea, p)} label="전체 복사" />
-              <button type="button" className="rounded border border-line px-1.5 py-0.5 text-xs text-muted hover:text-foreground" onClick={make} disabled={busy}>
-                {busy ? "만드는 중…" : "다시 만들기"}
-              </button>
-            </span>
-          </summary>
+          <summary className="w-fit font-medium">제작 패키지</summary>
+          {/* the buttons sit below the summary, not in it: a control inside a summary cannot be reached reliably from the keyboard */}
+          <div className="mt-2 flex gap-1.5">
+            <CopyButton text={packToMarkdown(idea, p)} label="전체 복사" />
+            <button type="button" className="rounded border border-line px-1.5 py-0.5 text-xs text-muted hover:text-foreground" onClick={make} disabled={busy}>
+              {busy ? "만드는 중…" : "다시 만들기"}
+            </button>
+          </div>
           {isLongPack(p) ? <LongBody p={p} /> : <ShortBody p={p} />}
         </details>
       )}

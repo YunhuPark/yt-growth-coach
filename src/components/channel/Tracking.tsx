@@ -191,7 +191,7 @@ function Baseline({ b, busy, onBuild }: { b: BaselineSummary | null; busy: boole
       {formats.map((f) => {
         const set = b.sets[f]!;
         return (
-          <div key={f} className="mt-3 overflow-x-auto">
+          <div key={f} className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="기준선 표">
             <h3 className="mb-1 text-sm font-medium">
               {FORMAT_NAME[f]} 기준선 <span className="text-xs font-normal text-muted">· 영상 {set.n}개</span>
             </h3>
@@ -378,7 +378,7 @@ function EntryCard({
           }}
         />
       )}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="추적 지표 표">
         <table className="w-full min-w-[480px] text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>

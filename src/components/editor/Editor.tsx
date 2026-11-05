@@ -24,13 +24,13 @@ type Tool = "shorts" | "auto" | "cut" | "frame" | "beats" | "retention" | "url";
 type StepId = "task" | "video" | "style" | "run";
 
 const TOOLS: { id: Tool; icon: IconName; title: string; blurb: string; uses: "ai" | "local"; needsVideo: boolean; /** the video can be skipped */ optionalVideo?: boolean }[] = [
-  { id: "shorts", icon: "clapper", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상에서 쇼츠로 올리기 좋은 구간을 점수와 함께 뽑아 쇼츠로 만듭니다.", uses: "ai", needsVideo: true },
-  { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 계획하고, 확인한 뒤 영상으로 만듭니다.", uses: "ai", needsVideo: true },
-  { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "말이 끊긴 빈 구간과 “음…”, “어…”를 잘라 템포를 빠르게 합니다.", uses: "local", needsVideo: true },
-  { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람·동물을 따라 화면 위치를 옮깁니다.", uses: "local", needsVideo: true },
-  { id: "beats", icon: "wave", title: "박자에 맞춰 효과 넣기", blurb: "영상 속 음악의 박자를 찾아, 박자마다 번쩍임·확대·효과음을 넣어 줍니다.", uses: "local", needsVideo: true },
-  { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 영상이 있으면 그 구간을 보고 바로 편집본도 만들어요.", uses: "local", needsVideo: true, optionalVideo: true },
-  { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 붙이면 요약·주제·제목·쇼츠 구간·롱폼 구성안을 만듭니다. 영상 파일은 필요 없어요.", uses: "ai", needsVideo: false },
+  { id: "shorts", icon: "clapper", title: "긴 영상에서 쇼츠 뽑기", blurb: "긴 영상에서 쇼츠 구간을 골라 쇼츠로 만들어요.", uses: "ai", needsVideo: true },
+  { id: "auto", icon: "timeline", title: "한 편 자동 편집", blurb: "컷·자막·제목·설명을 AI가 짜 줘요.", uses: "ai", needsVideo: true },
+  { id: "cut", icon: "scissors", title: "무음·군말 자르기", blurb: "빈 구간과 “음…”, “어…”를 잘라요.", uses: "local", needsVideo: true },
+  { id: "frame", icon: "frame", title: "가로 → 세로 자동 프레임", blurb: "가로 영상을 세로로 자를 때 사람을 따라가요.", uses: "local", needsVideo: true },
+  { id: "beats", icon: "wave", title: "박자에 맞춰 효과 넣기", blurb: "음악 박자마다 번쩍임·효과음을 넣어요.", uses: "local", needsVideo: true },
+  { id: "retention", icon: "chart", title: "시청 지속 분석", blurb: "시청자가 어디서 떠나는지 찾아요.", uses: "local", needsVideo: true, optionalVideo: true },
+  { id: "url", icon: "link", title: "유튜브 주소로 분석", blurb: "주소만 넣으면 요약과 아이디어를 줘요.", uses: "ai", needsVideo: false },
 ];
 
 const STEP_LABEL: Record<StepId, string> = { task: "작업 고르기", video: "영상 올리기", style: "꾸미기", run: "만들기" };
@@ -54,7 +54,8 @@ export default function Editor() {
   const at = Math.max(0, steps.indexOf(step));
   const ready = sourceReady(source);
 
-  const go = (s: StepId) => {
+  const go = (to: StepId) => {
+    const s = steps.includes(to) ? to : "task"; // a step this task does not have (the public demo has no video step) would be a screen with no way back
     setStep(s);
     if (s === "run") setRanOnce(true);
     window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -77,8 +78,8 @@ export default function Editor() {
   const next = at < steps.length - 1 ? () => go(steps[at + 1]) : undefined;
 
   const nextBlocked: Record<StepId, string | null> = {
-    task: tool ? null : "먼저 하고 싶은 작업을 하나 골라 주세요.",
-    video: ready || tool?.optionalVideo ? null : "영상을 올리고 권리 확인을 마치면 다음으로 갈 수 있어요.",
+    task: tool ? null : "작업을 하나 골라 주세요.",
+    video: ready || tool?.optionalVideo ? null : "영상과 권리 확인이 필요해요.",
     style: null,
     run: null,
   };
@@ -98,10 +99,10 @@ export default function Editor() {
 
             {/* 1. what to do */}
             <Pane hidden={step !== "task"}>
-              <Heading n={1} total={steps.length} title="무엇을 해볼까요?" sub="하고 싶은 작업을 하나 고르세요. 나중에 언제든 바꿀 수 있어요." />
+              <Heading n={1} total={steps.length} title="무엇을 해볼까요?" sub="하나 고르세요. 언제든 바꿀 수 있어요." />
               {DEMO && (
                 <p className="callout text-sm">
-                  <b>공개 데모입니다.</b> 여기서는 브라우저 안에서만 계산하는 <b>시청 지속 분석</b>을 써 볼 수 있어요. 영상을 올려서 처리하거나 AI를 쓰는 기능은, 영상이 서버로 올라가지 않도록 <Link className="font-semibold underline underline-offset-4" href="/#run">내 컴퓨터에서 실행</Link>하는 방식으로 만들었습니다.
+                  <b>공개 데모</b>에서는 시청 지속 분석만 써 볼 수 있어요. 나머지는 <Link className="font-semibold underline underline-offset-4" href="/#run">내 컴퓨터에서 실행</Link>하면 쓸 수 있습니다.
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,7 +124,7 @@ export default function Editor() {
                       )}
                       <Icon name={t.icon} size={26} />
                       <span className="mt-1 text-lg font-bold leading-tight tracking-tight">{t.title}</span>
-                      <span className="text-sm text-muted">{DEMO && t.id === DEMO_TOOL ? "Studio의 시청 지속률 데이터를 붙이면 시청자가 어디서 떠나는지 찾아 줍니다. 계산은 모두 이 브라우저 안에서 해요." : t.blurb}</span>
+                      <span className="text-sm text-muted">{t.blurb}</span>
                       <span className="mt-auto flex flex-wrap gap-1.5 pt-3">
                         <span className={t.uses === "ai" ? "chip-ai" : "chip-local"}>{t.uses === "ai" ? "AI 사용" : "내 컴퓨터에서만"}</span>
                         <span className="chip">{locked ? "내 컴퓨터에서 실행하면 사용" : DEMO ? "파일 없이 가능" : t.optionalVideo ? "영상 파일 선택" : t.needsVideo ? "영상 파일 필요" : "파일 없이 가능"}</span>
@@ -132,36 +133,39 @@ export default function Editor() {
                   );
                 })}
               </div>
-              <p className="text-sm text-muted">
-                <span className="chip-ai">AI 사용</span> 은 분석을 위해 이미지·글자 일부를 AI 서비스로 보내고 사용량만큼 비용이 듭니다.{" "}
-                <span className="chip-local">내 컴퓨터에서만</span> 는 영상이 밖으로 나가지 않고 비용도 들지 않습니다.
-              </p>
+              <ul className="flex flex-col gap-1.5 text-sm text-muted">
+                <li><span className="chip-ai">AI 사용</span> 이미지·글자 일부를 AI로 보내고, 쓴 만큼 비용이 듭니다.</li>
+                <li><span className="chip-local">내 컴퓨터에서만</span> 밖으로 나가지 않고, 비용도 없습니다.</li>
+              </ul>
               <StepNav next={next} nextLabel={steps[1] === "run" ? "다음: 시작하기" : "다음: 영상 올리기"} blocked={nextBlocked.task} />
             </Pane>
 
             {/* 2. the video */}
             <Pane hidden={step !== "video"}>
-              <Heading n={2} total={steps.length} title="편집할 영상을 올려 주세요" sub={tool ? (tool.optionalVideo ? `${tool.title}에는 영상이 꼭 필요하지 않아요. 올리면 이탈 구간을 바로 재생하고 편집본·쇼츠를 만들 수 있고, 없으면 건너뛰어도 됩니다.` : `${tool.title}에 쓸 영상이에요. 한 번 올리면 이후 단계에서 계속 이 영상을 씁니다.`) : ""} />
+              <Heading n={2} total={steps.length} title="편집할 영상을 올려 주세요" sub={tool ? (tool.optionalVideo ? "영상이 없어도 돼요. 있으면 구간을 바로 보고 편집본도 만들 수 있어요." : "한 번만 올리면 다음 단계에서도 이 영상을 써요.") : ""} />
               <SourcePanel source={source} onChange={setSource} hideTitle />
               <StepNav back={back} next={next} nextLabel={tool?.optionalVideo && !ready ? "영상 없이 다음: 꾸미기" : "다음: 꾸미기"} blocked={nextBlocked.video} />
             </Pane>
 
             {/* 3. how it should look */}
-            <Pane hidden={step !== "style"}>
-              <Heading n={3} total={steps.length} title="어떻게 꾸밀까요?" sub="모두 선택 사항이에요. 건드리지 않으면 기본 설정으로 만들어집니다." />
-              <SettingsPanel />
-              <StepNav back={back} next={next} nextLabel="다음: 만들기" blocked={nextBlocked.style} />
-            </Pane>
+            {/* (not mounted when this task skips it: its pictures are requests to /api/stylepreview, which the public demo refuses) */}
+            {steps.includes("style") && (
+              <Pane hidden={step !== "style"}>
+                <Heading n={3} total={steps.length} title="어떻게 꾸밀까요?" sub="전부 선택이에요. 그대로 두면 기본값으로 만들어요." />
+                <SettingsPanel />
+                <StepNav back={back} next={next} nextLabel="다음: 만들기" blocked={nextBlocked.style} />
+              </Pane>
+            )}
 
             {/* 4. do it */}
             {(step === "run" || ranOnce) && tool && (
               <Pane hidden={step !== "run"}>
-                <Heading n={steps.length} total={steps.length} title="이제 만들어 볼까요?" sub={`${tool.title} · 아래 순서대로 진행하세요. 중간 결과는 뒤로 갔다 와도 남아 있어요.`} />
+                <Heading n={steps.length} total={steps.length} title="이제 만들어 볼까요?" />
                 <div className="callout flex flex-wrap items-center gap-2">
-                  {tool.needsVideo && <span className="chip-local">{sourceName(source) || "영상 없음"}</span>}
-                  {tool.needsVideo && <SettingsSummary />}
-                  <button className="ml-auto py-1.5 text-sm font-medium underline underline-offset-4" onClick={() => go(tool.needsVideo ? "video" : "task")}>
-                    {tool.needsVideo ? "영상·설정 바꾸기" : "작업 바꾸기"}
+                  {steps.includes("video") && <span className="chip-local">{sourceName(source) || "영상 없음"}</span>}
+                  {steps.includes("video") && <SettingsSummary />}
+                  <button className="ml-auto py-1.5 text-sm font-medium underline underline-offset-4" onClick={() => go(steps.includes("video") ? "video" : "task")}>
+                    {steps.includes("video") ? "영상·설정 바꾸기" : "작업 바꾸기"}
                   </button>
                 </div>
 
