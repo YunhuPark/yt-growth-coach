@@ -1,5 +1,6 @@
 import path from "node:path";
-import { isSubjectLabel, type Box } from "./reframe";
+import { attachFaces, isSubjectLabel, type Box } from "./reframe";
+import { faceFinder, type FaceFinder } from "./faceDetector";
 import { modelsDir } from "./transcribe";
 
 // Finds people (and animals and vehicles) in a picture, on this computer: a small object-detection model (YOLOS tiny, quantized,
@@ -30,7 +31,7 @@ export const detectorModelFile = () => path.join(modelsDir(), "Xenova", "yolos-t
  * The real detector: boxes for everything that can be followed, with the model's label. Loaded once and kept. `width`/`height` of the picture are needed to turn the model's pixel boxes into
  * fractions, so the caller passes the size of what it sampled.
  */
-export function subjectDetector(size: { width: number; height: number }, onProgress?: (percent: number) => void): Detector {
+export function subjectDetector(size: { width: number; height: number }, onProgress?: (percent: number) => void, findFaces: FaceFinder = faceFinder): Detector {
   return async (imagePath) => {
     g.__detector ??= (async () => {
       const { pipeline, env } = await import("@huggingface/transformers");
@@ -50,7 +51,7 @@ export function subjectDetector(size: { width: number; height: number }, onProgr
     });
     const detect = await g.__detector;
     const found = await detect(imagePath, { threshold: 0.4 });
-    return found
+    const boxes: Box[] = found
       .filter((d) => isSubjectLabel(d.label))
       .map((d) => ({
         x0: Math.max(0, d.box.xmin / size.width),
@@ -60,5 +61,8 @@ export function subjectDetector(size: { width: number; height: number }, onProgr
         score: d.score,
         label: d.label,
       }));
+    // faces (where the body box misleads): none when the face model could not be had, and then the boxes stand as they are
+    const faces = await findFaces(imagePath);
+    return faces.length ? attachFaces(boxes, faces) : boxes;
   };
 }

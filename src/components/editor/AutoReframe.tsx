@@ -110,7 +110,9 @@ export default function AutoReframe({ source }: { source: SourceState }) {
   // On a real close-up recording the followed crop cut the face in all four frames checked, the fixed middle in one.
   const closeUp = useMemo(() => {
     const w = (found?.looks ?? []).flatMap((l) => l.boxes.filter((b) => labelOf(b) === "person").map((b) => b.x1 - b.x0)).sort((a, b) => a - b);
-    return w.length > 0 && w[w.length >> 1] > 0.45;
+    // once faces were found the follow uses the face, so the body box's middle no longer misleads
+    const hasFaces = (found?.looks ?? []).some((l) => l.boxes.some((b) => b.face));
+    return !hasFaces && w.length > 0 && w[w.length >> 1] > 0.45;
   }, [found]);
   const fixed = fixedChoice ?? closeUp;
   const zoom = useMemo(() => {
@@ -208,7 +210,7 @@ export default function AutoReframe({ source }: { source: SourceState }) {
         summary="가로 영상을 세로로 자를 때, 사람·동물을 따라 화면 위치를 옮겨요."
         steps={["‘찾기 시작’을 누릅니다", "따라갈 대상·확대·카메라 움직임을 조절합니다", "구간을 정하고 ‘세로 쇼츠로 만들기’를 누릅니다"]}
         uses="local"
-        notes={["찾기는 이 컴퓨터에서만 해요. 처음 한 번 인식 모델(약 9MB)을 받아요.", "영상 1분에 1분 안팎 걸려요.", "대상·확대·카메라 움직임은 눈으로 보며 조절해요."]}
+        notes={["찾기는 이 컴퓨터에서만 해요. 처음 한 번 인식 모델(약 9MB)과 얼굴 모델(약 0.2MB)을 받아요. 얼굴이 보이면 얼굴을 따라가요.", "영상 1분에 1분 안팎 걸려요.", "대상·확대·카메라 움직임은 눈으로 보며 조절해요."]}
       />
 
       {!sourceReady(source) && <p className="rounded-md border border-line bg-card px-3 py-2 text-xs text-muted">영상을 먼저 올려 주세요.</p>}

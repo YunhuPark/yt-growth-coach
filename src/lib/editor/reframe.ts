@@ -2,7 +2,8 @@
 // imports, so the page can redraw the camera path instantly when the smoothness changes.
 
 /** A detection, as fractions of the picture (origin top-left). `label` is what the model called it; none means a person. */
-export type Box = { x0: number; y0: number; x1: number; y1: number; score: number; label?: string };
+/** `face` is the face found inside a person's box, when a face finder was available: the body box alone is a poor guide once someone fills the picture. */
+export type Box = { x0: number; y0: number; x1: number; y1: number; score: number; label?: string; face?: { x0: number; y0: number; x1: number; y1: number; score: number } };
 /** What one look at one still found. */
 export type Look = { t: number; boxes: Box[] };
 /** A detection that is believed to be the same thing as the ones with the same id in other looks. */
@@ -65,7 +66,32 @@ export const cropWidthPx = (srcW: number, srcH: number, zoom = 1) => cropSizePx(
 // ---------------------------------------------------------------- who to follow
 
 const area = (b: Box) => Math.max(0, b.x1 - b.x0) * Math.max(0, b.y1 - b.y0);
-const cxOf = (b: Box) => (b.x0 + b.x1) / 2;
+/** Where to look horizontally: the face when there is one, otherwise the middle of the box. */
+const cxOf = (b: Box) => (b.face ? (b.face.x0 + b.face.x1) / 2 : (b.x0 + b.x1) / 2);
+const left = (b: Box) => (b.face ? b.face.x0 : b.x0);
+const right = (b: Box) => (b.face ? b.face.x1 : b.x1);
+
+/**
+ * Gives each person box the face that sits inside it. A face with no body box around it (the body is mostly out of the picture,
+ * which a person who has just stepped in or out often is) becomes a person box of its own, so it can still be followed.
+ */
+export function attachFaces(boxes: Box[], faces: { x0: number; y0: number; x1: number; y1: number; score: number }[]): Box[] {
+  const out = boxes.map((b) => ({ ...b }));
+  for (const f of [...faces].sort((a, b) => b.score - a.score)) {
+    const mx = (f.x0 + f.x1) / 2;
+    const my = (f.y0 + f.y1) / 2;
+    const host = out
+      .filter((b) => labelOf(b) === "person" && !b.face && mx >= b.x0 && mx <= b.x1 && my >= b.y0 && my <= b.y1)
+      .sort((a, b) => area(a) - area(b))[0];
+    if (host) host.face = f;
+    else {
+      const w = f.x1 - f.x0;
+      const h = f.y1 - f.y0;
+      out.push({ x0: Math.max(0, f.x0 - w), y0: Math.max(0, f.y0 - h * 0.4), x1: Math.min(1, f.x1 + w), y1: Math.min(1, f.y1 + h * 3), score: f.score, label: "person", face: f });
+    }
+  }
+  return out;
+}
 
 function iou(a: Box, b: Box): number {
   const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
@@ -108,10 +134,11 @@ export function chooseFocus(boxes: Box[], prev: number | null, cropFrac: number)
   const focus = (set: Box[], cx: number): Focus => {
     const y0 = Math.min(...set.map((b) => b.y0));
     const y1 = Math.max(...set.map((b) => b.y1));
+    if (set.every((b) => b.face)) return { cx, cy: (Math.min(...set.map((b) => b.face!.y0)) + Math.max(...set.map((b) => b.face!.y1))) / 2 };
     return { cx, cy: y0 + (set.every((b) => labelOf(b) === "person") ? 0.3 : 0.5) * (y1 - y0) };
   };
-  const x0 = Math.min(...found.map((b) => b.x0));
-  const x1 = Math.max(...found.map((b) => b.x1));
+  const x0 = Math.min(...found.map(left));
+  const x1 = Math.max(...found.map(right));
   if (x1 - x0 <= cropFrac * 0.95) return focus(found, (x0 + x1) / 2);
   const rank = (b: Box) => b.score * area(b) * (prev === null ? 1 : Math.exp(-3 * Math.abs(cxOf(b) - prev)));
   const best = found.reduce((a, b) => (rank(b) > rank(a) ? b : a));

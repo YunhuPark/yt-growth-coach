@@ -25,8 +25,9 @@ ffmpeg는 **별도의 프로그램으로 실행**할 뿐 이 프로젝트 코드
 
 - 사람·동물 찾기: `Xenova/yolos-tiny`
 - 음성 인식(군말 찾기): `Xenova/whisper-small`
+- 얼굴 찾기: YuNet(`opencv/face_detection_yunet`의 `face_detection_yunet_2023mar.onnx`, 약 233KB). OpenCV 공식 모델 저장소(opencv_zoo, Apache-2.0)의 것으로, 모델 폴더의 LICENSE는 MIT(Copyright 2020 Shiqi Yu)입니다. 처음 자동 프레임을 쓸 때 Hugging Face에서 내려받습니다.
 
-두 모델의 라이선스는 **여기서 확인하지 못했습니다**(내려받은 폴더에 모델 카드가 없음). 사용하거나 배포하기 전에 Hugging Face의 각 모델 페이지에서 확인하세요.
+위 `Xenova` 두 모델의 라이선스는 **여기서 확인하지 못했습니다**(내려받은 폴더에 모델 카드가 없음). 사용하거나 배포하기 전에 Hugging Face의 각 모델 페이지에서 확인하세요.
 
 ## 글꼴
 

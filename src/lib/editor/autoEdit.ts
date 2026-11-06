@@ -167,15 +167,6 @@ export type PlanContext = {
   captions?: "speech" | "ai";
 };
 
-/** Below this, speech is quiet enough that recognition (even after the sound is raised) tends to mishear words. */
-export const QUIET_SPEECH_DB = -32;
-
-/** How loud the recognised speech is: the median level (dB) of the seconds that overlap a spoken line; null when unknown. */
-export function speechLevelDb(loudness: Analysis["loudness"], speech: Speech[]): number | null {
-  const levels = loudness.filter((l) => Number.isFinite(l.db) && speech.some((s) => l.t + 1 > s.start && l.t < s.end)).map((l) => l.db).sort((a, b) => a - b);
-  return levels.length >= 3 ? levels[levels.length >> 1] : null;
-}
-
 /**
  * What was said inside the kept parts, as captions on the edited timeline. A creator who talks to the camera expects the captions
  * to be their words; the model's own lines (about the scene) are not that.
@@ -261,10 +252,6 @@ export async function planEdit(a: Analysis, ctx: PlanContext, call: Call = defau
   // With speech known, keep a cut from landing in the middle of a sentence.
   if (a.speech?.segments.length) raw.segments = snapToSpeech(raw.segments, a.speech.segments);
   const plan = sanitizePlan(raw, { duration: a.duration, layout: ctx.layout, targetSec: ctx.targetSec });
-  const level = a.speech ? speechLevelDb(a.loudness, a.speech.segments) : null;
-  if (level !== null && level < QUIET_SPEECH_DB) {
-    plan.warnings.push(`말소리가 작아요(약 ${Math.round(level)}dB). 인식이 틀릴 수 있으니 자막을 꼭 확인하세요. 마이크에 가까이 말하거나 입력 소리를 키워 다시 녹음하면 훨씬 정확해요.`);
-  }
   if ((ctx.captions ?? "speech") === "speech" && a.speech?.segments.length) {
     const said = speechCaptionsFor(plan.segments, a.speech.segments);
     if (said.length) {

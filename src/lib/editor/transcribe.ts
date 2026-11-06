@@ -109,9 +109,9 @@ export async function extractAudio(input: string, dir: string, maxSec = MAX_TRAN
   const file = "speech.f32";
   const { code, stderr } = await run(
     ["-y", "-hide_banner", "-loglevel", "error", ...(startSec > 0 ? ["-ss", String(startSec)] : []), "-i", input, "-vn", "-t", String(maxSec),
-      // A webcam or phone recording is often far quieter than the speech model expects (the one tried here averaged -41 dB).
-      // Raising it to a normal speaking level made the model hear "영실을 갔어"/"집을 왔어" where it had heard "응시를 갔어"/"불러왔어".
-      // Noise reduction is left out on purpose: afftdn made the model repeat "음" hundreds of times.
+      // Bring the level to a normal speaking level before the model hears it. Measured on six clean Korean read-speech clips this
+      // changes little (character error 4.1% against 3.7% without, and 4.5% either way when the clips were lowered to -42 dB), so it is
+      // cheap insurance, not a fix. Noise reduction is left out on purpose: afftdn made the model repeat "음" hundreds of times.
       "-af", "loudnorm=I=-20:TP=-2:LRA=11",
       "-ac", "1", "-ar", "16000", "-f", "f32le", file],
     dir,
