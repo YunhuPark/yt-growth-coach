@@ -128,6 +128,43 @@ describe("planning with speech", () => {
     assert.equal(plan.segments[0].end, 11, "cut moved to the end of the sentence");
   });
 
+  it("puts what was said under the kept parts instead of the model's scene lines, on the edited timeline", async () => {
+    const speech = { segments: [{ start: 2, end: 5, text: "미용실 갔어" }, { start: 12, end: 15, text: "집에 왔어" }], truncated: false };
+    const ai = raw({
+      segments: [{ start: 0, end: 6, reason: "a" }, { start: 10, end: 16, reason: "b" }],
+      captions: [{ start: 1, end: 4, text: "뒤로 보이는 책장 한가득" }],
+    });
+    const plan = await planEdit({ ...base, speech }, { layout: "short", topic: "", targetSec: 20 }, async () => ai);
+    assert.deepEqual(plan.captions.map((c) => c.text), ["미용실 갔어", "집에 왔어"]);
+    assert.ok(!plan.captions.some((c) => /책장/.test(c.text)), "the model's invented line is gone");
+    // the second part starts 6 s into the result, and "집에 왔어" is 2 s into that part
+    assert.equal(plan.captions[0].start, 2);
+    assert.equal(plan.captions[1].start, 8);
+    assert.ok(plan.warnings.some((w) => /음성 인식 결과 그대로/.test(w)));
+  });
+
+  it("warns when the recorded speech is too quiet to trust, and stays quiet about a normal level", async () => {
+    const speech = { segments: [{ start: 2, end: 8, text: "작게 말함" }], truncated: false };
+    const level = (db: number) => Array.from({ length: 10 }, (_, t) => ({ t, db }));
+    const quiet = await planEdit({ ...base, loudness: level(-42), speech }, { layout: "short", topic: "", targetSec: 20 }, async () => raw());
+    assert.ok(quiet.warnings.some((w) => /말소리가 작아요\(약 -42dB\)/.test(w)), quiet.warnings.join(" | "));
+    const normal = await planEdit({ ...base, loudness: level(-22), speech }, { layout: "short", topic: "", targetSec: 20 }, async () => raw());
+    assert.ok(!normal.warnings.some((w) => /말소리가 작아요/.test(w)));
+    const unknown = await planEdit({ ...base, speech }, { layout: "short", topic: "", targetSec: 20 }, async () => raw());
+    assert.ok(!unknown.warnings.some((w) => /말소리가 작아요/.test(w)), "no loudness data, no claim");
+  });
+
+  it("keeps the model's captions when asked to, or when nothing was heard in the kept parts", async () => {
+    const speech = { segments: [{ start: 20, end: 24, text: "잘린 말" }], truncated: false };
+    const ai = raw({ captions: [{ start: 1, end: 4, text: "장면 설명" }] });
+    const kept = await planEdit({ ...base, speech }, { layout: "short", topic: "", targetSec: 20 }, async () => ai);
+    assert.deepEqual(kept.captions.map((c) => c.text), ["장면 설명"]);
+    assert.ok(kept.warnings.some((w) => /알아들은 말이 없어/.test(w)));
+    const said = { segments: [{ start: 2, end: 5, text: "말한 내용" }], truncated: false };
+    const asAi = await planEdit({ ...base, speech: said }, { layout: "short", topic: "", targetSec: 20, captions: "ai" }, async () => ai);
+    assert.deepEqual(asAi.captions.map((c) => c.text), ["장면 설명"]);
+  });
+
   it("says so when speech recognition was not used, and warns when only the start was recognised", async () => {
     assert.match(describeAnalysis(base, { layout: "short", topic: "", targetSec: 20 }), /대사 인식: 사용하지 않음/);
     const plan = await planEdit({ ...base, speech: { segments: [], truncated: true } }, { layout: "short", topic: "", targetSec: 20 }, async () => raw());

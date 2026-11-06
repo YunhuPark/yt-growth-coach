@@ -5,7 +5,8 @@ import { z } from "zod";
 import { summarizeLoudness, type Analysis } from "./analyzeVideo";
 import { LAYOUTS, type Layout } from "./render";
 import { chapterLines, mapChapters, type Chapter } from "./chapters";
-import { snapToSpeech } from "./transcribe";
+import { snapToSpeech, type Speech } from "./transcribe";
+import { captionsFor } from "./highlights";
 import { trackedClient } from "../shared/usage";
 
 // The model proposes keep-ranges, captions and titles in SOURCE time; sanitizePlan turns that into something safe to render:
@@ -159,7 +160,35 @@ export type PlanContext = {
   topic: string;
   /** desired length of the result, seconds */
   targetSec: number;
+  /**
+   * What the captions say. "speech" (the default whenever speech was recognised) puts what was said, as recognised, under the
+   * kept parts; "ai" keeps the model's own lines, which describe the scene and are not a transcript.
+   */
+  captions?: "speech" | "ai";
 };
+
+/** Below this, speech is quiet enough that recognition (even after the sound is raised) tends to mishear words. */
+export const QUIET_SPEECH_DB = -32;
+
+/** How loud the recognised speech is: the median level (dB) of the seconds that overlap a spoken line; null when unknown. */
+export function speechLevelDb(loudness: Analysis["loudness"], speech: Speech[]): number | null {
+  const levels = loudness.filter((l) => Number.isFinite(l.db) && speech.some((s) => l.t + 1 > s.start && l.t < s.end)).map((l) => l.db).sort((a, b) => a - b);
+  return levels.length >= 3 ? levels[levels.length >> 1] : null;
+}
+
+/**
+ * What was said inside the kept parts, as captions on the edited timeline. A creator who talks to the camera expects the captions
+ * to be their words; the model's own lines (about the scene) are not that.
+ */
+export function speechCaptionsFor(segments: EditPlan["segments"], speech: Speech[]): EditPlan["captions"] {
+  const out: EditPlan["captions"] = [];
+  let at = 0;
+  for (const s of segments) {
+    for (const c of captionsFor(s.start, s.end, speech)) out.push({ start: r1(at + c.start), end: r1(at + c.end), text: c.text });
+    at += s.end - s.start;
+  }
+  return out;
+}
 
 const SYSTEM = `당신은 유튜브 영상 편집자입니다. 크리에이터가 권리를 가진 영상 한 편의 분석 자료(대표 장면 이미지, 장면 전환 시각, 무음 구간, 초당 소리 크기)를 받아 편집 계획을 만듭니다.
 
@@ -232,6 +261,17 @@ export async function planEdit(a: Analysis, ctx: PlanContext, call: Call = defau
   // With speech known, keep a cut from landing in the middle of a sentence.
   if (a.speech?.segments.length) raw.segments = snapToSpeech(raw.segments, a.speech.segments);
   const plan = sanitizePlan(raw, { duration: a.duration, layout: ctx.layout, targetSec: ctx.targetSec });
+  const level = a.speech ? speechLevelDb(a.loudness, a.speech.segments) : null;
+  if (level !== null && level < QUIET_SPEECH_DB) {
+    plan.warnings.push(`말소리가 작아요(약 ${Math.round(level)}dB). 인식이 틀릴 수 있으니 자막을 꼭 확인하세요. 마이크에 가까이 말하거나 입력 소리를 키워 다시 녹음하면 훨씬 정확해요.`);
+  }
+  if ((ctx.captions ?? "speech") === "speech" && a.speech?.segments.length) {
+    const said = speechCaptionsFor(plan.segments, a.speech.segments);
+    if (said.length) {
+      plan.captions = said;
+      plan.warnings.push("자막은 음성 인식 결과 그대로예요. 틀린 글자가 있으면 아래에서 고치세요.");
+    } else plan.warnings.push("남긴 구간에서 알아들은 말이 없어 AI가 쓴 자막을 그대로 두었습니다.");
+  }
   if (a.speech?.truncated) plan.warnings.push("대사 인식은 앞부분 30분까지만 했습니다. 그 뒤 구간의 자막은 장면 기준입니다.");
   return plan;
 }
