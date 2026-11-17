@@ -4,10 +4,12 @@
 # Models (speech recognition, subject detection) are downloaded on first use into /app/.data, which should be a volume.
 #
 #   docker build -t cliplab .
-#   docker run --rm -p 3000:3000 -v cliplab-data:/app/.data cliplab
+#   docker run --rm -p 127.0.0.1:3000:3000 -v cliplab-data:/app/.data cliplab
 #   (add  -e ANTHROPIC_API_KEY=...  for the AI features)
 #
 # The public demo is the same image built with --build-arg NEXT_PUBLIC_DEMO=1 (no video processing, no AI, no sign-in).
+# Full mode has no multiuser authentication. Keep the host-side port on 127.0.0.1;
+# the container's 0.0.0.0 listener is only for Docker's loopback port forwarding.
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
