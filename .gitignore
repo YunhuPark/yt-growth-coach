@@ -46,3 +46,14 @@ next-env.d.ts
 
 # frames and work files of scripts/record-tour.mjs
 tour-work/
+
+# 비밀 정보·로컬 자격 증명 (커밋 금지)
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+cookies.txt
+*.key
+token*.json
+credentials*.json
